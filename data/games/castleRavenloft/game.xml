@@ -1,0 +1,2194 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<g:game name="Castle Ravenloft" creator="Wizards of the Coast" porter="Adam Milazzo" version="1" schemaVersion="1"
+        assembly="CastleRavenloft.dll"
+        xmlns:g="http://www.adammil.net/BirdhouseManor/game.xsd">
+
+  <squareTypes>
+    <squareType name="coffin" />
+    <squareType name="skull" />
+  </squareTypes>
+
+  <squares squareSize="116x116">
+    <square character="." type="blank" />
+    <square character="*" type="continuation" />
+    <square character="F" type="floor" src="map/floor1.png" />
+    <square character="F" type="floor" src="map/floor2.png" />
+    <square character="F" type="floor" src="map/floor3.png" />
+    <square character="F" type="floor" src="map/floor4.png" />
+    <square character="F" type="floor" src="map/floor5.png" />
+    <square character="F" type="floor" src="map/floor6.png" />
+    <square character="F" type="floor" src="map/floor7.png" />
+    <square character="F" type="floor" src="map/floor8.png" />
+    <square character="C" type="coffin" src="map/coffin.png" size="1x2" />
+    <square character="W" type="wall" src="map/wall.png" placement="fill" />
+    <square character="S" type="spawn" src="map/skullpile.png" placement="random" />
+    <square character="H" type="skull" src="map/skull.png" />
+  </squares>
+
+  <tokens>
+    <!-- TODO: built-in markers: Dazed, Frenzied, Immobilized, Slowed? -->
+    <token name="Immobilized" isCondition="true" tokenImg="tokens/immobilized.png" iconImg="tokens/immobilized_icon.png"
+           description="Cannot move." />
+    <token name="Slowed" isCondition="true" tokenImg="tokens/slowed.png" iconImg="tokens/slowed_icon.png"
+           description="Base speed is reduced to 2."/>
+  </tokens>
+
+  <dungeonCards tileSize="4x4" defaultFloor="F">
+    <!-- TODO: the start tile needs special handling, because it counts as 2 tiles in some cases and 1 tile in others... -->
+    <card type="start" name="Start" src="map/start.png">
+      <layer>
+        FFFF
+        FWWS
+        FWWF
+        WWWW
+      </layer>
+    </card>
+
+    <card type="start" name="Start">
+      <layer>
+        FFFF
+        FFFF
+        SFFF
+        FFFF
+      </layer>
+    </card>
+
+    <card difficulty="hard" count="3">
+      <layer>
+        FFFW
+        FSFW
+        FC*W
+        WWWW
+      </layer>
+    </card>
+
+    <card difficulty="easy" count="6">
+      <layer>
+        FFFF
+        FFSF
+        FFFF
+        FFFF
+      </layer>
+    </card>
+
+    <card difficulty="easy" count="3">
+      <layer>
+        WFFW
+        WFFF
+        WFFF
+        WFFW
+      </layer>
+      <square character="H" location="3,3" />
+    </card>
+
+    <card difficulty="hard" count="2">
+      <layer>
+        FFFF
+        *SF*
+        CFFC
+        WWWW
+      </layer>
+    </card>
+  </dungeonCards>
+
+  <encounterCards>
+    <environment name="Bat Swarm" condition="wasAttackRolled(hero) and ATTACKER.tile != DEFENDER.tile"
+                 flavor="A horde of shrieking bats flutter through the catacombs, blocking your sight.">
+      <description>
+        <b>Whenever a hero attacks a monster that is not on his or her tile, that hero makes the attack roll twice and uses the
+        lower result.</b>
+      </description>
+      <effect>
+        N = roll()
+        if(N &lt; ROLL) ROLL = N
+      </effect>
+    </environment>
+
+    <environment name="Blood Fog" condition="wasAttackRolled()"
+                 flavor="A mystical reddish fog brings out the inner animal in the living and the dead.">
+      <description>
+        <b>Whenever a hero or a monster attacks and rolls a natural 17 or higher, the target of the attack takes 1 additional
+        damage.</b>
+      </description>
+      <effect>
+        if(ROLL >= 17) DAMAGE = DAMAGE+1
+      </effect>
+    </environment>
+
+    <environment name="Cackling Skull" condition="wasPowerUsed(ITEM.type == 'daily' or ITEM.type == 'utility')"
+                 flavor="A crystal skull floats out of the darkness. Its maddening laughter makes it difficult to focus.">
+      <description><b>Whenever a hero uses a daily power or utility power, that hero takes 1 damage.</b></description>
+      <effect>damage(1, SELF)</effect>
+    </environment>
+
+    <environment name="Crippling Miasma" condition="onMove() and !hasToken('Immobilized') and !hasToken('Slowed') and SPEED > 0"
+                 effect="SPEED = SPEED-1" flavor="A horrible stench of decay fills the air.">
+      <description>
+        <b>Each hero's speed is reduced by 1. (Slowed heroes are unaffected.)</b>
+      </description>
+    </environment>
+
+    <environment name="Deadly Shadows" condition="isPhase(heroEnd) and any(hero, 0, tile, ITEM != HERO)"
+                 effect="damage(1, HERO)" flavor="Voices from the shadows whisper horrifying secrets about your companions.">
+      <description>
+        <b>Whenever the active hero ends his or her turn on a tile that has another hero on it, the active hero takes 1
+        damage.</b>
+      </description>
+    </environment>
+
+    <environment name="Haunted Mists" condition="wasAttackRolled(monster)"
+                 effect="if(ATTACKER.race == 'Undead') { BONUS = BONUS+2 }"
+                 flavor="You catch glimpses of the faces of long dead adventurers in the mists that fill the crypt.">
+      <description>
+        <b>Undead Monsters gain a +2 bonus to attack rolls.</b>
+      </description>
+    </environment>
+
+    <environment name="Music of The Damned" condition="wasCardDrawn(monster)"
+                 flavor="The haunting sound of an organ echoes through the crypts, sending shivers down your spine.">
+      <description>
+        <b>Whenever a hero would place a new monster, that hero draws two monster cards and chooses the monster worth the most
+        experience. He or she places that monster and discards the other.</b>
+      </description>
+      <effect>
+        C = draw(monster, top, false)
+
+        if(CARD.xp > C.xp) S = CARD
+        else if(CARD.xp &lt; C.xp) S = C
+        else S = select([C, CARD])
+        
+        foreach([C,CARD], if(ITEM != S) { discard(ITEM) })
+      </effect>
+    </environment>
+
+    <environment name="Spirit of Doom" condition="wasDiscarded(treasure)" effect="damage(1, HERO)"
+                 flavor="A grim specter materlializes nearby, bringing portents of impending doom.">
+      <description>
+        <b>Whenever a hero discards a treasure card, he or she takes 1 damage.</b>
+      </description>
+    </environment>
+
+    <event name="Ambush!" count="2" damage="Slowed"
+           flavor="A massive net falls from the ceiling while monsters close in from all sides.">
+      <description>Attack each hero on the active hero's tile.<p/>Place a new monster on the active hero's tile.</description>
+      <effect>
+        foreach(select(hero, 0, tile, all),
+        {
+          if(attack(ITEM, 8, 0)) addMarker('Slowed', ITEM)
+        })
+      </effect>
+    </event>
+
+    <event name="Animated Armor" effect="attack(0, tile, all, 7, 3, 1)" description="Attack each hero on the active hero's tile."
+           flavor="Suits of armor spring out of dark alcoves to attack you." />
+
+    <event name="Bubbling Cauldron" description="Place each monster 1 tile closer to the active hero."
+           flavor="The monsters around you rush forward, drawn by a repulsive odor spilling out of a bubbling cauldron.">
+      <effect>
+        foreach(selectAny(monster, all),
+        {
+          M = ITEM
+          D = distance(tile, M, HERO)-1
+          place(M, 1, tile, M, distance(tile, ITEM, HERO) == D)
+        })
+      </effect>
+    </event>
+
+    <event name="Choking Fog" effect="attack(0, tile, all, 6, 2, 1)" description="Attack each hero on the active hero's tile."
+           flavor="Acrid, yellow smoke fills the crypt, causing you to choke and cough." />
+
+    <event name="Circle of Death" flavor="A wave of shadowy, pulse-stopping energy blossoms from the center of the room.">
+      <description>
+        Attack each hero on the active hero's tile.
+        <p/>
+        <b>Each undead monster on the active hero's tile regains 1 hit point.</b>
+      </description>
+      <effect>
+        attack(0, tile, all, 8, 2, 1)
+        heal(1, select(monster, 0, tile, all, HERO, ITEM.race == 'Undead'))
+      </effect>
+    </event>
+
+    <event name="Cowardly Flight" flavor="A monster flees from you to seek help.">
+      <description>
+        If there are no monsters in play, discard this card.
+        <p/>
+        <b>Draw a tile from the bottom of the dungeon tile stack and place it adjacent to the unexplored edge that is closest to
+        the active hero. Place a new monster on that tile, and place the monster closest to the active hero on that tile. Do not
+        draw an encounter card.</b>
+      </description>
+      <effect>
+        M = selectClosest(monster)
+        if(M)
+        {
+          T = explore(draw(dungeon, bottom), selectClosest(unexploredEdge), false)
+          place(M, T)
+        }
+      </effect>
+    </event>
+
+    <event name="Cyrus Belview">
+      <flavor>
+        A gaunt, ghoulish looking man in a torn suit grins at you through yellowed teeth. "The master said we were expecting
+        company. Allow me to escort you to your chambers."
+      </flavor>
+      <description>
+        Draw a tile from the bottom of the dungeon tile stack and place it adjacent to any unexplored edge. Place two new
+        monsters on that tile then place the active hero on that tile.
+        <p/>
+        <b>Each other hero can place himself or herself on the active hero's new tile.</b>
+      </description>
+      <effect>
+        T = explore(draw(dungeon, bottom), selectAny(unexploredEdge))
+        place(spawn(monster), T)
+        place(HERO, T)
+        foreach(selectAny(hero, all, ITEM != HERO), withCancellation(place(ITEM, T)))
+      </effect>
+    </event>
+
+    <event name="Frenzy" count="2" effect="addToken('Frenzied', 1, HERO.monsters)"
+           flavor="The monsters around you roar in fury."
+           description="Each monster you control activates twice during your villain phase." />
+
+    <event name="Ghost of Prince Aurel"
+           flavor="A ghost materializes in the corridor ahead; its horrid features freeze you in terror.">
+      <description>
+        Flip over one unused daily power or utility power. If you don't have an unused power to flip over, take 1 damage instead.
+      </description>
+      <effect>
+        P = select(hero.powers, 1, !ITEM.used and (ITEM.type == 'daily' or ITEM.type == 'utility'))
+        if(P) P.used = true
+        else damage(1, HERO)
+      </effect>
+    </event>
+
+    <event name="Gray Ooze" effect="if(attack(HERO, 8, 3, 1)) { discard(selectRandom(HERO.treasures)) }"
+           flavor="A pseudopod emerges from a puddle of gray ooze on the ground and strikes at you.">
+      <description>
+        Attack the active hero.
+        <p/>
+        <b>If the active hero is hit by the attack, the active hero discards 1 treasure card at random.</b>
+      </description>
+    </event>
+
+    <event name="Green Slime" flavor="A hideous blob of green slime falls from the ceiling.">
+      <description>
+        Attach each hero on the active hero's tile.
+        <p/>
+        <b>If the active hero is hit by the attack, the active hero discards 1 treasure card at random.</b>
+      </description>
+      <effect>
+        foreach(select(hero, 0, tile, all),
+        {
+          if(attack(ITEM, 6, 2, 1)) discard(selectRandom(ITEM.treasures))
+        })
+      </effect>
+    </event>
+
+    <event name="Hands of the Dead" flavor="Severed hands crawl from the earth and grab at you.">
+      <description>
+        Attack each hero on the active hero's tile.
+        <p/>
+        <b>If a hero is hit by the attack, the hero is slowed.</b>
+      </description>
+      <effect>
+        foreach(select(hero, 0, tile, all),
+        {
+          if(attack(ITEM, 6, 2, 1)) addMarker('Slowed', ITEM)
+        })
+      </effect>
+    </event>
+
+    <event name="Howl of the Wolf" effect="activate(selectAny(monster))"
+           description="Choose one monster on any hero's tile. that monster immediately activates.">
+      <flavor>
+        The distant baying of a wolf echoes through the dungeon causing the monsters around you to shriek in response.
+      </flavor>
+    </event>
+
+    <event name="Howling Ghost" flavor="A shrieking banshee emerges from the shadows; its howl causes you to recoil in agony.">
+      <description>
+        Attack each hero on the active hero's tile.
+        <p/>
+        <b>A hero hit by this attack can flip an unused daily power over to prevent this damage.</b>
+      </description>
+      <effect>
+        ONHIT =
+        {
+          C = withCancellation(
+          {
+            P = select(ITEM.powers, 1, !ITEM.used and ITEM.type == 'daily')
+          })
+          if(C and P)
+          {
+            P.used = true
+            miss()
+          }
+        }
+        
+        foreach(select(hero, 0, tile, all), attack(ITEM, 9, 2, 0, ONHIT))
+      </effect>
+    </event>
+
+    <event name="Icy Corridor" flavor="A thin layer of ice makes it difficult to stand in one place.">
+      <description>
+        Attack each hero on the active hero's tile.
+        <p/>
+        <b>After the attack, place each hero on the active hero's tile on a tile within 1 tile of the active hero's tile.
+        (Heroes can be placed on different tiles.)</b>
+      </description>
+      <effect>
+        attack(0, tile, all, 8, 2, 1)
+        place(select(hero, 0, tile, all), 1, tile)
+      </effect>
+    </event>
+
+    <event name="Illusionary Trick" effect="swap(HERO, selectFarthest(monster))"
+           flavor="Even allies aren't always what they appear to be!"
+           description="The active hero swaps posititions with the monster that is farthest from him or her." />
+
+    <event name="King Tomescu's Portal" attackBonus="8" damage="1"
+           flavor="You fall through a mysterious portal, reappearing elsewhere in the crypts covered with wounds.">
+      <description>
+        Attack the active hero three times.
+        <p/>
+        <b>Remove the active hero from his or her tile. At the start of that hero's next hero phase, place that hero on any
+        tile.</b>
+      </description>
+      <effect>
+        attack(HERO, 8, 1)
+        attack(HERO, 8, 1)
+        attack(HERO, 8, 1)
+        place(HERO, limbo)
+        addEvent(HERO, isPhase(heroStart, CTX), place(CTX, anywhere))
+      </effect>
+    </event>
+
+    <event name="Lief Lipsiege">
+      <flavor>
+        A gnarled old man dressed as a clerk steps from the shadows. "I watched the master's treasure. At least, I do unless
+        I'm distracted."
+      </flavor>
+      <description>
+        You try to distract Lief. Roll a die.
+        <p/>
+        <b>1-10: You scare Lief and he calls for help. Place a new monster on the active hero's tile.<br/>
+        11-20: Draw a treasure card.</b>
+      </description>
+      <effect>
+        if(roll() &lt; 11) place(spawn(monster))
+        else draw(treasure)
+      </effect>
+    </event>
+
+    <event name="Mists of Terror" description="Roll a die for each hero. On a 1-5, the hero takes 1 damage and is immobilized.">
+      <flavor>
+        You hear a whispering chant, and a white mist flows through the crypts. As you breathe in the foul air, horrifying
+        thoughts root you in place.
+      </flavor>
+      <effect>
+        foreach(selectAny(hero, all),
+        {
+          if(roll() &lt; 6)
+          {
+            damage(1, ITEM)
+            setMarker('Immobilized', ITEM)
+          }
+        })
+      </effect>
+    </event>
+
+    <event name="Neglected Passage" count="2" flavor="&quot;Did you look down that hall?&quot;">
+      <description>
+        If a start tile is not in play, discard this card and draw a new encounter Card.
+        <p/>
+        <b>Draw a tile from the bottom of the dungeon tile stack and place it adjacent to the unexplored edge that is closest to
+        the start tile.<br/>
+        Place a new monster on that tile, but do not draw an encounter card.</b>
+      </description>
+      <effect>
+        S = selectAny(tile, 1, ITEM.name == 'Start')
+        if(S)
+        {
+          explore(draw(dungeon, bottom), selectClosest(unexploredEdge, 1, null, S), false)
+        }
+        else
+        {
+          discard()
+          draw(encounter)
+        }
+      </effect>
+    </event>
+
+    <event name="Overrun" count="2" flavor="Monsters charge from all directions!"
+           description="Each hero takes damage equal to the number of monsters he or she controls.">
+      <effect>
+        foreach(selectAny(hero, all), damage(count(ITEM.monsters), ITEM))
+      </effect>
+    </event>
+
+    <event name="Overwhelming Terror" flavor="A cacophony of shrieks and howls rises up around you, and you flee in terror.">
+      <description>
+        If a start tile is not in play, discard this card and draw a new encounter card.
+        <p/>
+        <b>Place each hero 2 tiles closer to the start tile. If a hero is on the same tile as a monster after being placed, that
+        hero is slowed.</b>
+      </description>
+      <effect>
+        S = selectAny(tile, 1, ITEM.name == 'Start')
+        foreach(selectAny(hero, all),
+        {
+          D = max(0, distance(tile, ITEM, S) - 2)
+          place(ITEM, select(tile, 2, tile, 1, ITEM, distance(tile, ITEM, S) == D))
+          if(any(monster, 0, tile, ITEM)) addMarker('Slowed', ITEM)
+        })
+      </effect>
+    </event>
+
+
+    <event name="Passage of Time" count="2" effect="damage(1, selectAny(hero, all))" description="Each hero takes 1 damage."
+           flavor="The unholy air in Strahd's crypts saps the strength from you and your companions." />
+
+    <event name="Patrina Velikovna">
+      <flavor>
+        The ghostly image of an elf maid appears before you. She smiles for a moment before unleashing a blod curdling shriek.
+      </flavor>
+      <description>
+        Attack each hero.
+        <p/>
+        <b>After the attack, place each monster that is not on the same tile as a hero 1 tile closer to the closest hero.</b>
+      </description>
+      <effect>
+        attack(selectAny(hero, all), 7, 2, 1)
+        foreach(selectAny(monster, all, !any(hero, 0, tile, ITEM)),
+        {
+          H = selectClosest(hero, ITEM)
+          D = distance(tile, ITEM, H) - 1
+          place(ITEM, select(tile, 1, tile, 1, ITEM, distance(tile, ITEM, H) == D))
+        })
+      </effect>
+    </event>
+
+    <event name="Prowling Ghost"
+           flavor="The ghosts of past adventurers haunt this room. Their shrieks send you running deeper into the dungeon.">
+      <description>
+        Attack the active hero.
+        <p/>
+        <b>After the attack, draw a tile from the bottom of the dungeon tile stack and place it adjacent to the unexplored edge
+        that is closest to the active hero. Place a new monster on that tile, and then place the active hero on that tile.</b>
+      </description>
+      <effect>
+        attack(HERO, 9, 1)
+        T = explore(draw(dungeon, bottom), selectClosest(unexploredEdge))
+        place(HERO, T)
+      </effect>
+    </event>
+
+    <event name="Prowling Spirits" effect="discard(select(HERO.treasures))"
+           flavor="Cold, spectral hands grasp at you. Before you can react, one of your items is gone."
+           description="You must discard one treasure card that you own (of your choice)." />
+
+    <event name="Reinforcements" flavor="The constant advance of Strahd's minions gives you no time to relax.">
+      <description>
+        Choose the hero controlling the fewest monsters. That hero places a new monster on any tile with an unexplored edge.
+      </description>
+      <effect>
+        H = selectMin(hero, count(ITEM.monsters))
+        T = selectAny(tile, 1, any(ITEM.unexploredEdges))
+        place(spawn(monster, H), T)
+      </effect>
+    </event>
+
+    <event name="Secret Door" effect="explore(draw(dungeon, bottom), selectClosest(unexploredEdge), false)"
+           flavor="A section of the stone wall slides away, revealing a hidden chamber.">
+      <description>
+        Draw a tile from the bottom of the dungeon tile stack and place it adjacent to the unexplored edge that is closest to the
+        active hero.
+        <p/>
+        <b>place a new monster on that tile, but do not draw an encounter card.</b>
+      </description>
+    </event>
+
+    <event name="Spider Webs" damage="Immobilized" effect="if(attack(HERO, 4, 0)) { addMarker('Immobilized') }"
+           flavor="Hundreds of tiny spiders crawl across the ceiling sending a thick mass of webs down upon you."
+           description="Attack the active hero." />
+
+    <event name="Spirit of Doom" flavor="The entire crypt shudders as though some gargantuan creature was moving deep below.">
+      <description>
+        Each hero can immediately move up to his or her speed. After this move, each hero on a tile with no monsters takes 1
+        damage.
+      </description>
+      <effect>
+        foreach(selectAny(hero, all),
+        {
+          move(ITEM.speed, ITEM)
+          if(!any(monster, 0, tile, ITEM)) damage(1, ITEM)
+        })
+      </effect>
+    </event>
+
+    <event name="Strahd Attacks!" effect="attack(1, tile, all, 6, 3, 1)">
+      <flavor>
+        Strahd steps from the shadows, sending a ball of fire streaking from his outstretched hands. As it explodes, he
+        disappears back into the shadows.
+      </flavor>
+      <description>Attack each hero within 1 tile of the active hero.</description>
+    </event>
+
+    <event name="Strahd's Hunger"
+           description="Choose the hero with the most hit points remaining. That hero takes 1 damage and is immobilized.">
+      <flavor>
+        Vertigo washes over you as Strahd steps from the shadows. His will overwhelms you, and he laughs as he steps back into
+        the darkness.
+      </flavor>
+      <effect>
+        H = selectMax(hero, ITEM.hp)
+        damage(1, H)
+        addMarker('Immobilized', H)
+      </effect>
+    </event>
+
+    <event name="Strahd's Minions" flavor="Strahd steps from the shadows and casts a spell.">
+      <description>
+        Place the active hero and two monsters that are closest to that hero on the tile farthest from the active hero.
+        <p/>
+        If there are less than two monsters in play, place a new monster adjacent to the active hero after he or she is placed.
+      </description>
+      <effect>
+        T = selectFarthest(tile)
+        M = selectClosest(monster, 2)
+        place(HERO, T)
+        place(M, T)
+        if(count(M) &lt; 2) place(spawn(monster), 1, square, HERO)
+      </effect>
+    </event>
+
+    <event name="Strahd's Trick">
+      <flavor>
+        Your mind reels as Strahd places a spell upon you. Your friends become enemies, and your enemies become friends.
+      </flavor>
+      <description>
+        Place the active hero on a tile within 1 tile of you that has the most monsters on it. If no tile within 1 tile of you
+        has monsters, the active hero takes 1 damage.
+      </description>
+      <effect>
+        if(!any(monster, 1, tile)) damage(1, HERO)
+        else place(HERO, selectMax(select(tile, 1, tile, all), count(ITEM.monsters)))
+      </effect>
+    </event>
+
+    <!-- TODO: finish this -->
+    <event name="Strahd's Whispers" flavor="Straud's voice echoes in your mind, compelling you to turn against your friends.">
+      <description>
+        Place the active hero adjacent to the next closest hero. The active hero attacks that hero with an at-will power.
+      </description>
+      <effect>
+        H = selectClosest(hero)
+        place(HERO, 1, square, H)
+      </effect>
+    </event>
+
+    <event name="Summoning Circle" effect="place(spawn(monster), 1, square, HERO)"
+           flavor="A careless misstep disturbs a magic rune, freeing a horrid creature."
+           description="Place a new Monster adjacent to the active hero." />
+
+    <event name="Teleport Glyph" flavor="An arcane symbol flashes at your feet and you disappear from sight."
+           description="Place the active hero and each monster on his or her tile on the tile farthest from the active hero.">
+      <effect>
+        T = selectFarthest(tile)
+        M = select(monster, 0, tile, all)
+        place(HERO, T)
+        place(M, T)
+      </effect>
+    </event>
+
+    <event name="Treasure Chest" flavor="You find an ancient chest with a rusty lock.">
+      <description>
+        You open a treasure chest. Roll a die:
+        <p/>
+        <b>1-10: Take 2 damage.<br/>
+        11-15: Take 1 damage and draw 1 Treasure Card.<br/>
+        16-20: Draw 1 Treasure Card.</b>
+      </description>
+      <effect>
+        N = roll()
+        if(N &lt; 11) damage(2, HERO)
+        else if(N &lt; 16) { damage(1, HERO) draw(treasure) }
+        else draw(treasure)
+      </effect>
+    </event>
+
+    <event name="Voice of the Master">
+      <flavor>
+        Strahd's voice echoes through the catacombs. "Slay them, my minions!" The monsters around you surge forward to attack.
+      </flavor>
+      <description>
+        Starting with the hero on your left, each hero immediately activates one monster he or she controls.
+        The first hero that cannot activate a monster instead places a new monster on any tile.
+      </description>
+      <effect>
+        H  = HERO.nextHero
+        CA = false
+        while(true)
+        {
+          M = select(ITEM.monsters)
+          if(M) activate(M)
+          else if(!CA) { CA=true place(spawn(monster, H), anywhere) }
+          if(H == HERO) break;
+          H = H.nextHero
+        }
+      </effect>
+    </event>
+
+    <trap name="Alarm"
+          flavor="The distant clatter of bells echoes through the crypts, drawing monsters out of their lairs to attack!">
+      <description>
+        Trigger the trap during your villain phase. Place a new monster on the unexplored edge that is closest to the Alarm
+        marker.
+      </description>
+      <effect>
+        E = selectClosest(unexploredEdge, 1, any(freeSpace, 0, square, ITEM))
+        place(spawn(monster), E)
+      </effect>
+    </trap>
+
+    <trap name="Crossbow Turret" effect="attack(1, tile, all, 8, 2, 1)"
+          flavor="A pair of armored crossbow turrets emerges from the wall to pepper you with quarrels!">
+      <description>Trigger the trap during your villain phase: Attack each hero within 1 tile of this trap.</description>
+    </trap>
+
+    <trap name="Crushing Walls" damage="2 Immobilized" flavor="The walls slide toward each other, trapping you between them!">
+      <description>Trigger the trap during your villain phase: Attack each hero on this tile.</description>
+      <effect>
+        foreach(select(hero, 0, tile, all),
+        {
+          if(attack(ITEM, 6, 2, 1)) addMarker('Immobilized', ITEM)
+        })
+      </effect>
+    </trap>
+
+    <trap name="Dart Trap" effect="attack(0, tile, all, 8, 2, 1)"
+          flavor="A soft click of a pressure plate beneath your foot precedes the volley of darts that explode from the wall.">
+      <description>Trigger the trap during your villain phase: Attack each hero on this tile.</description>
+    </trap>
+
+    <trap name="File Trap" effect="damage(2, select(hero, 0, tile, all))"
+          flavor="Jets of fire erupt from the walls and ceiling to engulf you.">
+      <description>Trigger the Trap during your villain phase: Each hero on this tile takes 2 damage.</description>
+    </trap>
+
+    <trap name="Sliding Walls"
+          flavor="You hear the grinding of stone against stone as the walls separate you from your allies.">
+      <description>
+        Trigger the trap during your villain phase: Roll the die for each hero on this tile and place that hero on a tile within
+        1 tile of this trap in the direction indicated by the sliding walls marker. If the direction rolled is a wall or
+        unexplored tile, the hero takes 1 damage and remains on this tile.
+      </description>
+      <effect>
+        foreach(select(hero, 0, tile, all),
+        {
+          E = SELF.tile.edges[roll(4)-1]
+          if(E.isExplored) place(ITEM, E.linkedTile)
+          else damage(1, ITEM)
+        })
+      </effect>
+    </trap>
+
+    <trap name="Spear Gauntlet" effect="attack(0, tile, all, 6, 3, 1)" flavor="Spears pop out of the ground, skewering you!">
+      <description>Trigger the trap during your villain phase: Attack each hero on this tile.</description>
+    </trap>
+  </encounterCards>
+  
+  <treasureCards>
+    <blessing name="Guided Strikes" effect="addBonus(selectAny(hero, all), 'Guided Strikes', 2)">
+      <description>Until the end of your next hero phase, each hero gains a +2 bonus to attack rolls.</description>
+    </blessing>
+
+    <blessing name="Heroic Stand"
+              effect="addBonus(selectAny(hero, all), 'Heroic Stand', { count(monster, 0, tile) })">
+      <description>
+        Until the end of your next hero phase, each hero gains a bonus to attack rolls equal to the number of monsters on his or
+        her tile.
+      </description>
+    </blessing>
+
+    <blessing name="Rejuvenating Onslaught">
+      <description>
+        Until the end of your next hero phase, whenever a hero hits a monster with an attack, that hero regains 1 hit point.
+      </description>
+      <effect>
+        addToken('Rejuvenating Onslaught', 1, selectAny(hero, all))
+        addEvent([SELF, SELF.turnCount+1], wasHit(monster, hero) or (isPhase(heroEnd, CTX[0]) and CTX[0].turnCount==CTX[1]),
+        {
+          if(wasHit(monster, hero))
+          {
+            heal(1, ATTACKER)
+          }
+          else
+          {
+            addToken('Rejuvenating Onslaught', -1, selectAny(hero, all))
+            stopEvent()
+          }
+        }, true)
+      </effect>
+    </blessing>
+
+    <blessing name="Run!" description="Until the end of your next hero phase, each hero gains a +2 to speed."
+              effect="addBonus(selectAny(hero, all), 'Run!', 0, 0, 0, 2)" />
+
+    <blessing name="Surround Them!"
+              effect="addBonus(selectAny(hero, all), 'Surround Them!', { count(hero, 0, tile) })">
+      <description>
+        Until the end of your next hero phase, each hero gains a bonus to attack rolls equal to the number of heroes on his or
+        her tile.
+      </description>
+    </blessing>
+
+    <fortune name="Action Surge" effect="attackOrMove()" description="You can move your speed or make an attack." />
+
+    <fortune name="Breath of Life" count="3" effect="heal(1)" description="Your hero regains one hit point." />
+
+    <fortune name="Burst of Speed" effect="move()" description="Your hero can move his or her speed." />
+
+    <fortune name="Clear the Air" effect="discard(ENVIRONMENT)" description="Discard an environment card in play." />
+
+    <fortune name="Daze" effect="addMarker('Dazed', selectAny(monster))" />
+
+    <!-- TODO: implement this -->
+    <fortune name="Distant Sounds"
+              description="Look at the top 3 cards of the Monster deck and put them back on the top of the deck in any order." />
+
+    <fortune name="Eagle Eyes" effect="explore(null, selectAny(unexploredEdge), false)">
+      <description>
+        Place 1 tile from the top of the dungeon tile stack adjacent to any unexplored edge. Place any new Monsters on that tile
+        as normal, but do not draw an encounter card.
+      </description>
+    </fortune>
+
+    <!-- TODO: implement this -->
+    <fortune description="Look at the top 3 cards of the encounter deck and put them back on the top of the deck in any order."
+             name="Glimpse of the Future" />
+
+    <!-- TODO: implement this -->
+    <fortune name="Harrowed Experience" count="2">
+      <description>
+        This card counts as 1 experience point. put it in the xp pile, and discard this card when the party uses it for
+        experience.
+      </description>
+    </fortune>
+
+    <fortune name="Intimidating Bellow" description="Place one monster on a tile 2 tiles away from its tile.">
+      <effect>
+        M = selectAny(monster)
+        T = select(tile, 2, tile, 1, M, distance(tile, ITEM, M) == 2)
+        place(M, T)
+      </effect>
+    </fortune>
+
+    <!-- TODO: implement this -->
+    <fortune name="Level Up" description="You can spend 5 experience points to have your hero become 2nd level." />
+
+    <fortune name="Lucky Find" count="2" description="Draw three treasure cards and keep one. Discard the others.">
+      <effect>
+        C = draw(treasure, top, false, 3)
+        S = select(C)
+        foreach(C, if(ITEM != S) { discard(ITEM) })
+      </effect>
+    </fortune>
+
+    <!-- TODO: implement this -->
+    <fortune name="Moment's Respite">
+      <description>
+        Place this card face up on top of either the encounter deck or the monster deck.
+        <p/>
+        The next time a card would be drawn from the chosen deck, discard this card instead.
+      </description>
+    </fortune>
+
+    <fortune name="Shake it Off" description="Choose one hero and end one condition affecting him or her.">
+      <effect>
+        H = selectAny(hero, 1, any(ITEM.conditions))
+        if(H) removeMarker(select(H.conditions), H)
+      </effect>
+    </fortune>
+
+    <fortune name="Short Rest" count="2" description="Flip up one of your used powers.">
+      <effect>
+        P = select(SELF.powers, 1, ITEM.used)
+        if(P) P.used = false
+      </effect>
+    </fortune>
+
+    <item name="Amulet of Protection" discard="false"
+              effect="addBonus(SELF, 'Amulet of Protection', 0, 0, 1, 0, CARD, wasDiscarded(CTX))"
+              description="You gain a +1 bonus to AC while this item is in play." />
+
+    <item name="Boots of Striding" discard="false"
+              effect="addBonus(SELF, 'Boots of Striding', 0, 0, 0, 1, CARD, wasDiscarded(CTX))"
+              description="You gain a +1 bonus to speed while this item is in play." />
+
+    <!-- TODO: implement this -->
+    <item name="Crystal Ball" activation="onTurn"
+              description="Reveal the top card of any card deck or the top tile of any tile stack." />
+
+    <item name="Dragon's Breath Elixir" activation="onTurn" effect="attack(0, tile, all, 4, 1) discard()"
+              description="Attack each monster on your tile. This attack does not count as an attack action." />
+
+    <item name="Glyph of Warding" activation="onTurn" isAttack="true">
+      <description>
+        Place the Glyph of Warding marker on your tile. The first monster that moves to that tile takes 1 damage.
+      </description>
+      <effect>
+        T = SELF.tile
+        addToken('Glyph of Warding', 1, T)
+        addEvent(T, onMovedTo(CTX, monster), { damage(1, SELF) addToken('Glyph of Warding', -1, T) })
+      </effect>
+    </item>
+
+    <item name="Holy Avenger" discard="false">
+      <description>
+        You gain a +1 bonus to attack rolls against adjacent monsters while this item is in play.
+        <p/>
+        Increase the bonus to +3 against undead monsters.
+      </description>
+      <effect>
+        B = { !adjacent(ATTACKER, DEFENDER) ? 0 : DEFENDER.race == 'Undead' ? 3 : 1 }
+        addBonus(SELF, 'Holy Avenger', B, 0, 0, 0, CARD, wasDiscarded(CTX))
+      </effect>
+    </item>
+
+    <item name="Holy Water" activation="onTurn" isAttack="true"
+              condition="any(monster, 1, tile, ITEM.race == 'Undead')"
+              effect="damage(1, select(monster, 1, tile, 1, SELF, ITEM.race == 'Undead'))"
+              description="Choose an undead monster within 1 tile of you. It takes 1 damage." />
+
+    <!-- TODO: implement this -->
+    <item name="Lucky Charm" count="3" activation="interrupt">
+      <description>
+        <b>Use this item after any die roll.</b>
+        <p/>
+        Reroll the die.
+      </description>
+    </item>
+
+    <item name="Magic Sword" discard="false"
+          description="You gain a +1 attack bonus against adjacent monsters while this item is in play.">
+      <effect>
+        addBonus(SELF, 'Magic Sword', { adjacent(ATTACKER, DEFENDER) ? 1 : 0 }, 0, 0, 0, CARD, wasDiscarded(CTX))
+      </effect>
+    </item>
+
+    <item name="Necklace of Fireballs" activation="onTurn" isAttack="true"
+          effect="attack(0, tile, all, 5, 1, 0, select(tile, 1, tile, 1, SELF, distance(tile, ITEM) != 0))"
+          description="Attack each monster on a tile 1 tile away from you." />
+
+    <item name="Potion of Healing" activation="onTurn" count="2" effect="heal(1, select(hero, 1, square))"
+          description="You or an adjacent hero regains 2 hit points." />
+
+    <item name="Potion of Rejuvenation" activation="onTurn" condition="any(SELF.powers, ITEM.used)"
+          effect="select(SELF.powers, 1, ITEM.used).used = false" description="Flip up one of your used powers." />
+
+    <item name="Ring of Accuracy" discard="false"
+          effect="addBonus(SELF, 'Holy Avenger', { adjacent(ATTACKER, DEFENDER) ? 0 : 1 }, 0, 0, 0, CARD, wasDiscarded(CTX))"
+          description="You gain a +1 bonus to attack rolls against non-adjacent monsters while this item is in play." />
+
+    <!-- TODO: implement this -->
+    <item name="Ring of Regeneration" discard="false">
+      <description>
+        <b>Use this Item when you would draw a treasure card.</b>
+        <p/>
+        You can regain 1 hit point instead of drawing the treasure card.
+      </description>
+    </item>
+
+    <item name="Scroll of Teleportation" activation="onTurn" condition="any(hero, 0, tile)"
+          effect="place(select(hero, 0, tile, some), selectAny(tile))"
+          description="Choose any number of heroes on your tile and place them on another tile." />
+
+    <!-- TODO: implement this -->
+    <item name="Thieves' Tools" discard="false"
+          description="You gain a +4 bonus to rolls to disable traps while this item is in play." />
+
+    <item name="Wand of Teleportation" activation="onTurn" isAttack="true">
+      <description>
+        Choose a tile within 1 tile of you. Place each monster on the chosen tile on a tile within 3 tiles of you.
+      </description>
+      <effect>
+        T = select(tile, 1, tile)
+        place(select(monster, 0, tile, all, T), select(tile, 3, tile))
+      </effect>
+    </item>
+    
+    <!-- adventure treasure -->
+    <!-- TODO: implement this -->
+    <item name="Dimensional Shackles" count="0" activation="onTurn" isAttack="true">
+      <description>
+        Choose one adjacent monster. For the rest of the game, that monster takes 1 damage whenever it teleports.
+      </description>
+    </item>
+
+    <!-- TODO: implement this -->
+    <item name="Feywalk Amulet" count="0" discard="false">
+      <description>
+        While this item is in play, whenever a power or effect teleports your hero, you can choose any square on any tile as the
+        destination.
+      </description>
+    </item>
+
+    <item name="Holy Symbol of Ravenkind" count="0" activation="onTurn" isAttack="true"
+          condition="any(monster, 0, tile, SELF, ITEM.race == 'Undead')"
+          effect="damage(2, select(monster, 0, tile, 1, SELF, ITEM.race == 'Undead'))"
+          description="Choose one undead monster on your tile. It takes 2 damage." />
+
+    <item name="Icon of Ravenloft" activation="onTurn" condition="any(hero, ITEM.hp &lt; ITEM.maxHp)">
+      <description>
+        <b>Choose one:</b> Each hero regains 2 hit points, or one hero regains all of his or her hit points.
+      </description>
+      <effect>
+        C = select(['Heal all heroes for 2 HP', 'Heal one hero completely'])
+        if(C == 'Heal all heroes for 2 HP')
+        {
+          heal(2, selectAny(hero, all))
+        }
+        else
+        {
+          H = selectAny(hero)
+          heal(H.maxHp, H)
+        }
+      </effect>
+    </item>
+
+    <item name="Silver Dagger" count="0" activation="onTurn" isAttack="true"
+          condition="any(monster, 2, tile, SELF, ITEM.name == 'Werewolf')">
+      <description>
+        Attack one werewolf within 2 tiles of you.
+        <p/>
+        Hit or miss, the werewolf no longer regains hit points from its regeneration ability for the rest of the game.
+      </description>
+      <effect>
+        M = select(monster, 2, tile, 1, SELF, ITEM.name == 'Werewolf')
+        attack(M, 5, 3, 1)
+        addMarker('Can't Regenerate', M)
+      </effect>
+    </item>
+    
+    <item name="Sunsword" count="0" discard="false"
+          description="You deal +1 damage against adjacent vampires while this item is in play.">
+      <effect>
+        B = { adjacent(ATTACKER, DEFENDER) and (DEFENDER.race == 'Vampire' or DEFENDER.name == 'Young Vampire') ? 1 : 0 }
+        addBonus(SELF, 'Sunsword', 0, B, 0, 0, CARD, wasDiscarded(CTX))
+      </effect>
+    </item>
+
+    <item name="Tome of Strahd" count="0" discard="false">
+      <description>
+        You and each hero within 1 tile of you gain a +2 bonus to attack rolls against vampires while this item is in play.
+      </description>
+      <effect>
+        B = { (DEFENDER.race == 'Vampire' or DEFENDER.name == 'Young Vampire') and distance(tile, ATTACKER, CTX[0]) &lt;= 1 ? 2 : 0 }
+        addBonus(selectAny(hero, all), 'Tome of Strahd', B, 0, 0, 0, [SELF,CARD], wasDiscarded(CTX[1]))
+      </effect>
+    </item>
+
+    <item name="Torch" count="0" activation="onTurn" isAttack="true" condition="any(monster, 0, tile)">
+      <description>
+        Attack each monster on your tile.
+        <p/>
+        Hit or miss, place each monster on a tile within 1 tile of you.
+      </description>
+      <effect>
+        foreach(select(monster, 0, tile, all),
+        {
+          attack(ITEM, 5, 1)
+          place(ITEM, 1, tile, SELF)
+        })
+      </effect>
+    </item>
+
+    <item name="Wooden Stake" count="0" activation="onTurn" isAttack="true"
+          condition="any(monster, 1, square, SELF, ITEM.race == 'Vampire' or ITEM.name == 'Young Vampire')">
+      <description>
+        Attack one adjacent vampire.
+        <p/>
+        Hit or miss, the vampire does not activate during your next villain phase.
+      </description>
+      <effect>
+        M = select(monster, 1, square, 1, SELF, ITEM.race == 'Vampire' or ITEM.name == 'Young Vampire')
+        attack(M, 5, 3, 1)
+        addToken('Dazed', 1, M)
+      </effect>
+    </item>
+  </treasureCards>
+  
+  <powers>
+    <daily name="Dragon's Breath" isAttack="false"
+           condition="any(monster, 0, tile)" effect="attack(0, tile, all, 4, 1)"
+           flavor="With a roar, you breathe a deadly blast of fire that engulfs your foes." />
+
+    <daily class="cleric" name="Beacon of Hope" condition="any(monster, 1, tile)"
+           flavor="You blast your foes with a radiant light, and your allies are heartened by the attack.">
+      <description>
+        <b>Choose a tile within 1 tile of you. Attack each monster on that tile.</b>
+        <p/>
+        Each Hero on the chosen tile regains 1 Hit Point.
+      </description>
+      <effect>
+        T = select(tile, 1, tile, 1, SELF, any(monster, 0, tile, ITEM))
+        attack(0, tile, all, 6, 2, 0, T)
+        heal(1, select(hero, 0, tile, all, T))
+      </effect>
+    </daily>
+
+    <daily class="cleric" name="Hallowed Advance" condition="any(monster, 1, square)"
+           flavor="The power of your god inspires your allies to action.">
+      <description>
+        <b>Attack one adjacent Monster.</b>
+        <p/>
+        Hit or miss, each other hero can move 1 tile.
+      </description>
+      <effect>
+        attack(1, square, 1, 5, 3, 1)
+        move(1, selectAny(hero, all, ITEM != SELF))
+      </effect>
+    </daily>
+
+    <daily class="cleric" name="Flame Strike" condition="any(monster, 2, tile)"
+           flavor="A column of flame engulfs your foes.">
+      <description>
+        <b>Choose a tile within 2 tiles of you. Attack each monster on that tile.</b>
+      </description>
+      <effect>
+        T = select(tile, 2, tile, 1, SELF, any(monster, 0, tile, ITEM))
+        attack(0, tile, all, 6, 3, 1, T)
+      </effect>
+    </daily>
+    
+    <utility class="cleric" name="Healing Word" isAttack="false" condition="isPhase(hero)"
+             flavor="You whisper a brief prayer, and a divine healing light washes over your companion.">
+      <description>
+        <b>Use this power during your Hero Phase.</b>
+        <p/>
+        One Hero regains Hit Points equal to his or her healing surge value.
+      </description>
+      <effect>
+        H = selectAny(hero)
+        heal(H, H.surge)
+      </effect>
+    </utility>
+
+    <utility class="cleric" name="Shield of Faith" isAttack="false" condition="wasHit(hero, 0, tile)"
+             effect="miss() addBonus(select(hero, 1, tile, all), 'Shield of Faith', 0, 0, 2)"
+             flavor="Divine energy protects you and your companions.">
+      <description>
+        <b>Use when you or a hero on your tile is hit by an attack.</b>
+        The attack misses instead. You and each hero within 1 tile of you gains a +2 bonus to AC until the end of your next hero
+        phase.
+      </description>
+    </utility>
+
+    <utility class="cleric" name="Bless" isAttack="false" condition="isPhase(hero)"
+             effect="addBonus(select(hero, 1, tile, all), 'Blessed', 2)"
+             flavor="You call forth a holy blessing for you and your companions.">
+      <description>
+        <b>Use this power during your hero phase.</b>
+        <p/>
+        Each hero within 1 tile of you gains a +2 bonus to attack rolls until the end of your next hero phase.
+      </description>
+    </utility>
+
+    <!-- TODO: implement this -->
+    <utility class="cleric" name="Consecrated Ground" isAttack="false" condition="false"
+             flavor="You sanctify the ground around you, warding it from evil.">
+      <description>
+        <b>Use this power during your Hero Phase instead of attacking.</b>
+        <p/>
+        Choose a tile within 1 tile of you. If there is a marker on that tile, discard it.
+        Place the Consecrated Ground marker on the chosen tile. The next time you would place an encounter marker on that tile, discard that encounter card and do not draw a new encounter card. Then discard the Consecrated Ground marker.
+      </description>
+    </utility>
+
+    <atWill class="cleric" name="Healing Strike" condition="any(monster, 1, square)"
+            flavor="You smite your foe and heal a nearby companion.">
+      <description>
+        <b>Attack one adjacent monster.</b>
+        <p/>
+        If you hit, choose one hero within 1 tile. That hero regains 1 hit point.
+      </description>
+      <effect>
+        if(attack(1, square, 1, 8, 1))
+        {
+          H = select(hero, 1, tile)
+          heal(1, H)
+        }
+      </effect>
+    </atWill>
+
+    <atWill class="cleric" name="Lance of Faith" damage="1" condition="any(monster, 1, tile)"
+            flavor="You sear your foe with a brilliant ray of golden radiance.">
+      <description>
+        <b>Attack one monster within 1 tile of you.</b>
+        If the monster is undead, you deal +1 damage with this attack.
+      </description>
+      <effect>
+        M = select(monster, 1, tile)
+        D = M.race == 'Undead' ? 2 : 1
+        attack(M, 6, D)
+      </effect>
+    </atWill>
+
+    <atWill class="cleric" name="Divine Flare" condition="any(monster, 0, tile)"
+            flavor="The light of your deity scorches your foe and empowers your ally.">
+      <description>
+        <b>Attack one monster on your tile.</b>
+        If you hit, end one condition on a hero on your tile.
+      </description>
+      <effect>
+        M = select(monster, 0, tile)
+        if(attack(M, 6, 1))
+        {
+          H = select(hero, 0, tile, 1, SELF, any(ITEM.conditions))
+          if(H) removeMarker(select(H.conditions), H)
+        }
+      </effect>
+    </atWill>
+
+    <daily class="fighter" name="Precise Strike" effect="if(!attack(1, square, 1, 11, 2)) { preserve() }"
+           flavor="You concentrate to make sure you hit your opponent." />
+    
+    <daily class="fighter" name="Brute Strike" effect="if(!attack(1, square, 1, 5, 4)) { preserve() }"
+           flavor="You shatter your enemy's defenses with a powerful blow." />
+    
+    <daily class="fighter" name="Come and Get It" condition="any(monster, 1, tile)"
+           flavor="You call your opponents toward you and deliver an attack they won't forget."
+           description="Choose a tile within 1 tile of you. Place each monster on that tile adjacent to your hero, and then attack each adjacent monster.">
+      <effect>
+        T = select(tile, 1, tile)
+        place(select(monster, 0, tile, all, T), 1, square)
+        attack(1, square, all, 6, 1)
+      </effect>
+    </daily>
+
+    <utility class="fighter" name="Unstoppable" isAttack="false" condition="phase(start)" effect="heal(2)"
+             flavor="Your adrenaline carries you through the battle." />
+    
+    <utility class="fighter" name="Bodyguard" isAttack="false"
+             condition="!hasMarker('Immobilized') and wasHit(hero, monster)" effect="miss() swap(DEFENDER)"
+             flavor="You block an attack that would strike down your ally." />
+    
+    <utility class="fighter" name="Get Over There" isAttack="false"
+             condition="!hasMarker('Immobilized') and count(monster, 2, tile) > 1"
+             effect="place(SELF, 1, square, select(monster, 2, tile))"
+             flavor="You leap into a more advantageous position." />
+
+    <atWill class="fighter" name="Cleave" condition="count(monster, 0, tile) > 1"
+            flavor="You hit one monster, and then cleave into another.">
+      <description>
+        <b>Attack one adjacent monster.</b>
+        <p/>
+        If you hit, choose another monster on your tile and move adjacent to it. That monster takes 1 damage.
+      </description>
+      <effect>
+        M = select(monster, 1, square)
+        if(attack(M, 6, 1))
+        {
+          OM = select(monster, 0, tile, 1, SELF, ITEM != M and any(freeSpace, 1, square, ITEM))
+          if(OM)
+          {
+            if(!adjacent(OM)) place(SELF, 1, square, OM)
+            damage(1, OM)
+          }
+        }
+      </effect>
+    </atWill>
+    
+    <atWill class="fighter" name="Trapping Strike" condition="!hasMarker('Immobilized') and any(monster, 1, tile)"
+            effect="M=select(monster, 1, tile) place(SELF, 1, square, M) attack(M, 8, 1)"
+            flavor="Your challenge draws out your opponent."
+            description="Choose one Monster within 1 tile of you. Place that Monster adjacent to your Hero and attack it." />
+    
+    <atWill class="fighter" name="Tide of Iron" condition="!hasMarker('Immobilized') and any(monster, 1, square)"
+            effect="M=select(monster, 1, square) if(attack(M, 8, 1)) { place(M, 1, tile) place(SELF, 0, tile) }"
+            flavor="After each mighty swing, you advance as you push your enemy back." />
+
+    <daily class="ranger" name="Bounding Attack"
+           condition="!hasMarker('Immobilized') and any(find(monster, 1, tile), any(freeSpace, 1, square, ITEM))"
+           effect="M=select(monster, 1, tile) place(SELF, 1, square, M) attack(M, 6, 3, 1)"
+           flavor="You swiftly move to your foe and strike."
+           description="Select a monster within one tile of you. Move adjacent to it and attack it." />
+    
+    <daily class="ranger" name="Split the Tree" condition="any(monster, 2, tile)"
+           flavor="You fire two arrows at once, which strike two different monsters."
+           description="Choose a tile within 2 tiles of you. Attack two monsters on that tile. If you miss and that monster is more than 1 tile away from you, place it 1 tile closer to you.">
+      <effect>
+        T=select(tile, 2, tile)
+        D=distance(tile, T)
+        foreach(select(monster, 0, tile, 2, T),
+        {
+          if(!attack(ITEM, 6, 2, 1) and D > 1)
+          {
+            C=select(tile, 1, tile, 1, ITEM, distance(tile, ITEM) == D-1)
+            if(C) place(ITEM, C)
+          }
+        })
+      </effect>
+    </daily>
+    
+    <daily class="ranger" name="Attacks on the Run" condition="can(move)"
+           flavor="You run through your enemies, striking twice as you go."
+           description="Move your speed. Attack two Monsters that you were adjacent to during the movement.">
+      <effect>
+        PATH=move()
+        M=selectAny(monster, 2, { CM=ITEM any(PATH, adjacent(CM, ITEM)) })
+        attack(M, 4, 2, 1)
+      </effect>
+    </daily>
+
+    <utility class="ranger" name="Unbalancing Parry" isAttack="false"
+             condition="wasHit(SELF, monster) and adjacent(ATTACKER)" effect="miss() place(ATTACKER, 1, tile)"
+             flavor="You block an attack and slide your enemy away from you.">
+      <description>
+        <b>Use this power when an adjacent monster hits you.</b>
+        <p/>
+        The attack misses instead. Place that monster on a tile within 1 tile of you.
+      </description>
+    </utility>
+
+    <utility class="ranger" name="Crucial Aid" isAttack="false"
+             condition="ATTACKER != SELF and wasAttackRolled(hero)" effect="BONUS=BONUS+4"
+             flavor="You help a companion in great need."
+             description="Use this power after another Hero rolls the die. That Hero gains a +4 bonus to the die roll." />
+    <utility class="ranger" name="Yield Ground" isAttack="false"
+             condition="!hasMarker('Immobilized') and wasDamaged(monster)" effect="move()"
+             flavor="You leap to a safer position after suffering an attack."
+             description="Use this power when a Monster damages you. You move your speed." />
+
+    <atWill class="ranger" name="Careful Attack"
+            condition="any(monster, 1, square)" effect="damage(1, select(monster, 1, square))"
+            flavor="You study your enemy, looking for a gap in its defenses. Only when you find it do you strike."
+            description="One adjacent Monster takes 1 damage." />
+    <atWill class="ranger" name="Hunter's Shot" condition="any(monster, 2, tile)"
+            flavor="You take aim at your prey and fire your bow."
+            description="Attack one Monster within 2 tiles of you. If you miss and the Monster is more than 1 tile away from you, place it 1 tile closer to you.">
+      <effect>
+        M=select(monster, 2, tile)
+        D=distance(tile, M)
+        if(!attack(M, 6, 1) and D > 1)
+        {
+          C=select(tile, 1, tile, 1, M, distance(tile, ITEM) == D-1)
+          if(C) place(M, C)
+        }
+      </effect>
+    </atWill>
+    
+    <atWill class="ranger" name="Twin Shot"
+            condition="any(monster, 2, tile)" effect="attack(select(monster, 2, tile, 2), 4, 1)"
+            flavor="You fire two arrows in the space of a breath." description="Attack two Monsters within 1 tile of you." />
+
+    <daily class="rogue" name="Deep Cut" condition="any(monster, 1, square)"
+           flavor="A well timed slice incapacitates your enemy.">
+      <description>
+        <b>Attack one adjacent Monster.</b>
+        <p/>
+        Hit or miss, if the monster is adjacent to another Hero, it takes an additional 2 damage.
+      </description>
+      <effect>
+        M = select(monster, 1, square)
+        attack(M, 7, 2)
+        if(any(hero, 1, square, M, ITEM != SELF)) damage(2, M)
+      </effect>
+    </daily>
+    
+    <daily class="rogue" name="Riposte Strike"
+           condition="wasAttacked()" effect="if(!attack(ATTACKER, 7, 2)) { preserve() }"
+           flavor="Your foe's attack leaves it open to a counterattack.">
+      <description>
+        <b>Use this power immediately after an adjacent Monster attacks you. Attack that Monster.</b>
+        <p/>
+        If you miss, do not flip this card over.
+      </description>
+    </daily>
+    
+    <daily class="rogue" name="Dagger Barrage" condition="any(monster, 1, tile)"
+           flavor="You fling daggers at each nearby foe.">
+      <description>
+        <b>Choose a tile within 1 tile of you. Attack each Monster on that tile.</b>
+      </description>
+      <effect>
+        T = select(tile, 1, tile)
+        attack(0, tile, all, 7, 2, 1, T)
+      </effect>
+    </daily>
+
+    <utility class="rogue" name="Stealth" isAttack="false" condition="wasCardDrawn(monster)" effect="discard()"
+             flavor="Your silent advance avoids unwanted attentions.">
+      <description>
+        <b>Use this power immediately after you draw a monster card.</b>
+        <p/>
+        Discard the monster card instead of placing it.
+      </description>
+    </utility>
+
+    <utility class="rogue" name="Sneak Attack" isAttack="false" condition="isPhase(heroStart)"
+             effect="addBonus(SELF, 'Sneak Attack', 4, 1)"
+             flavor="You emerge from the shadows and position yourself to deliver a powerful strike to your enemy."
+             description="You gain a +4 bonus to attack rolls and deal +1 damage until the end of your next hero phase." />
+
+    <utility class="rogue" name="Great Leap" isAttack="false" isMove="true"
+             condition="can(move)" effect="place(SELF, 2, tile)"
+             flavor="You get a running start and leap a great distance.">
+      <description>
+        <b>Use this power during your Hero Phase instead of moving.</b>
+        <p/>
+        Place your Hero on a tile within 2 tiles of you.
+      </description>
+    </utility>
+    
+    <utility class="rogue" name="Spring Away" isAttack="false"
+             condition="ACTOR != SELF and wasCardDrawn(encounter)" effect="place(SELF, 2, tile)"
+             flavor="You sense trouble coming and move away before it catches you.">
+      <description>
+        <b>Use this power when another Hero draws an encounter card.</b>
+        <p/>
+        Place your Hero on a tile 2 tiles away from you before the encounter card triggers.
+      </description>
+    </utility>
+
+    <atWill class="rogue" name="Snipe Shot" attackBonus="7" condition="any(monster, 1, tile)"
+            flavor="You hurl your dagger from a place of safety.">
+      <description>
+        <b>Attack one Monster within 1 tile of you.</b>
+        <p/>
+        You gain a +2 bonus to the attack roll if the Monster is 1 tile away from you.
+      </description>
+      <effect>
+        M = select(monster, 1, tile)
+        attack(M, distance(tile, M) == 0 ? 7 : 9, 1)
+      </effect>
+    </atWill>
+    
+    <atWill class="rogue" name="Backstab" damage="1" condition="any(monster, 1, square)"
+            flavor="You strike from the shadows.">
+      <description>
+        <b>Attack one adjacent Monster.</b>
+        <p/>
+        On a hit, you deal +1 damage if the Monster is adjacent to another Hero.
+      </description>
+      <effect>
+        M = select(monster, 1, square)
+        B = any(hero, 1, square, M, ITEM != SELF)
+        attack(M, 7, B ? 2 : 1)
+      </effect>
+    </atWill>
+    
+    <atWill class="rogue" name="Deft Strike" condition="any(monster, 3, square)"
+            flavor="A final lunge puts you in an advantageous position.">
+      <description>
+        <b>Before the attack, you can move 2 squares. Attack one adjacent monster.</b>
+      </description>
+      <effect>
+        place(SELF, 3, square, SELF, any(monster, 1, square, ITEM))
+        attack(1, square, 7, 1)
+      </effect>
+    </atWill>
+
+    <daily class="wizard" name="Fireball" condition="any(monster, 1, tile, SELF, distance(tile, ITEM) != 0)"
+           flavor="A globe of orange flame forms in your hand and you hurl it. It explodes in a fiery burst."
+           description="Choose a tile 1 tile away from you. Attack each Monster on that tile.">
+      <effect>
+        T=select(tile, 1, tile, 1, SELF, distance(tile, ITEM) != 0)
+        attack(select(monster, 0, tiles, all, T), 7, 3, 1)
+      </effect>
+    </daily>
+    
+    <!-- TODO: unknown -->
+    <daily class="wizard" name="Lightning Bolt" />
+    
+    <daily class="wizard" name="Freezing Cloud"
+           condition="any(tile, 1, tile, SELF, distance(tile, ITEM) != 0 and countTokens('Freezing Cloud', ITEM) == 0)"
+           flavor="UNKNOWN"
+           description="Place the Freezing Cloud marker on a tile without a marker 1 tile away from you. Place 3 Cloud tokens on the Freezing Cloud marker. At the end of your Hero Phase, remove 1 token from the Freezing Cloud marker and deal 1 damage to each Monster on the Freezing Cloud tile. Discard the Freezing Cloud marker when there are no Cloud tokens left on it.">
+      <effect>
+        T=select(tile, 1, tile, 1, SELF, distance(tile, ITEM) != 0)
+        addTokens('Freezing Cloud', 1, T)
+        addEvent(T, isPhase(heroEnd),
+        {
+          damage(1, select(monster, 0, tile, all, CTX))
+          if(addTokens('Freezing Cloud', -1, CTX) == 0) stopEvent()
+        }, true)
+      </effect>
+    </daily>
+
+    <utility class="wizard" name="Dispel Magic" isAttack="false"
+           condition="wasCardDrawn(encounter)" effect="discard()"
+           flavor="You assert your will over the magic of the area, negating its effects."
+           description="Use when you draw an encounter Card. Cancel that encounter card." />
+
+    <utility class="wizard" name="Fey Step" isAttack="false"
+             condition="isPhase(hero) and !hasMarker('Immobilized')" effect="place(SELF, 1, tile)"
+             flavor="You step through the arcane mists to appear in a different location."
+             description="Use this power during your Hero Phase. Place your Hero on a tile within 1 tile of you." />
+    
+    <!-- TODO: unknown -->
+    <utility class="wizard" name="Shield" isAttack="false" />
+    
+    <utility class="wizard" name="Illusionary Crowd" isAttack="false"
+             condition="any(tile, 1, tile, SELF, distance(tile, ITEM) == 1 and !hasMarker('Illusionary Crowd', ITEM))"
+             flavor="You create an illisionary crowd of defenseless people to draw monsters away from you."
+             description="Place the Illusionary Crowd marker on a tile without a marker. Place each Monster on a tile 1 tile away from the illusionary crowd tile. The illusionary crowd counts as a Hero when a monster chooses a target. The illusionary crowd has AC 14 and 1 HP. Remove the Illusionary Crowd marker when it is damaged.">
+      <effect>
+        T = select(tile, 1, tile, 1, SELF, distance(tile, ITEM) == 1 and !hasMarker('Illusionary Crowd', ITEM))
+        addMarker('Illusionary Crowd', T)
+        H = spawn('FakeHero')
+        H.ac   = 14
+        H.hp   = 1
+        H.name = 'Illusionary Crowd'
+        place(H, T)
+        foreach(selectAny(monster, all), place(ITEM, 1, tile, T, distance(tile, ITEM, T) == 1))
+        addEvent([H,T], wasDamaged(any, CTX[0]), removeMarker('Illusionary Crowd', CTX[1]))
+      </effect>
+    </utility>
+
+    <atWill class="wizard" name="Thunderwave" condition="any(monster, 1, tile)"
+            flavor="You create a wave of sonic power that lashes your enemies."
+            description="After the attack, choose a tile within 1 tile of you. Place each monster on your tile on the chosen tile.">
+      <effect>
+        attack(1, tile, all, 7, 1)
+        T = select(tile, 1, tile)
+        if(distance(tile, T) != 0) place(select(monster, 0, tile, all), T)
+      </effect>
+    </atWill>
+    
+    <atWill class="wizard" name="Scorching Burst" condition="any(monster, 1, tile, distance(tile, ITEM) != 0)"
+            flavor="You create a vertical column of golden flames that burns all within it."
+            description="Choose a tile 1 tile away from you. Attack each monster on that tile.">
+      <effect>
+        T = select(tile, 1, tile, 1, SELF, distance(tile, ITEM) != 0)
+        attack(0, tile, all, 7, 1, 0, T)
+      </effect>
+    </atWill>
+    
+    <atWill class="wizard" name="Magic Missile" condition="any(monster, 3, tile)"
+            flavor="You launch a silvery bolt of energy at a monster."
+            description="Attack one Monster within 3 tiles of you. If you miss and the monster is more than 1 tile away from you, place it 1 tile closer to you.">
+      <effect>
+        M=select(monster, 3, tile)
+        D=distance(tile, M)
+        if(!attack(M, 8, 1) and D > 1)
+        {
+          C = select(tile, 1, tile, 1, M, distance(tile, ITEM) == D-1)
+          if(C) place(M, C)
+        }
+      </effect>
+    </atWill>
+  </powers>
+  
+  <heroes>
+    <hero name="Allisa" race="Human" tokenImg="map/allisa_token.png">
+      <flavor>
+        You are a master of bow and blade, with keen senses and dungeon skills. You are determined to stop the evil of
+        Castle Ravenloft.
+      </flavor>
+      <level level="1" class="Ranger" skills="Scout" ac="15" hp="8" surge="4" speed="6">
+        <powers>
+          <power class="ranger" count="1" type="utility" />
+          <power class="ranger" count="2" type="atWill" />
+          <power class="ranger" count="1" type="daily" />
+        </powers>
+      </level>
+      <level level="2" skills="Critical Strike" ac="1" hp="2" surge="1">
+        <powers>
+          <power class="ranger" count="1" type="daily" />
+        </powers>
+      </level>
+    </hero>
+
+    <hero name="Arjhan" race="Dragonborn" tokenImg="map/arjhan_token.png">
+      <flavor>
+        You are a mighty warrior, born to a clan of draconic humanoids. You have never lost a battle, and you have come to drive
+        evil out of the ruins of Castle Ravenloft.
+      </flavor>
+      <level level="1" class="Fighter" skills="Defender" ac="17" hp="10" surge="5" speed="6">
+        <powers>
+          <power name="Dragon's Breath" />
+          <power class="fighter" count="1" type="utility" />
+          <power class="fighter" count="2" type="atWill" />
+          <power class="fighter" count="1" type="daily" />
+        </powers>
+      </level>
+      <level level="2" skills="Critical Strike" ac="1" hp="2" surge="1">
+        <powers>
+          <power class="fighter" count="1" type="daily" />
+        </powers>
+      </level>
+    </hero>
+
+    <hero name="Immeril" race="Eladrin" tokenImg="map/immeril_token.png">
+      <flavor>
+        You are a powerful spellcaster from the magical lands of the Feywild. You seek arcane knowledge and magical treasure from
+        the ruins of Castle Ravenloft.
+      </flavor>
+      <level level="1" class="Wizard" skills="Lore" ac="14" hp="6" surge="3" speed="6">
+        <powers>
+          <power name="Fey Step" />
+          <power class="wizard" count="1" type="utility" />
+          <power class="wizard" count="2" type="atWill" />
+          <power class="wizard" count="1" type="daily" />
+        </powers>
+      </level>
+      <level level="2" ac="1" hp="2" surge="1">
+        <powers>
+          <power class="wizard" count="1" type="daily" />
+        </powers>
+      </level>
+    </hero>
+
+    <hero name="Kat" race="Human" tokenImg="map/kat_token.png">
+      <flavor>
+        You are stealthy and sneaky, and a master of sudden strikes and quick escapes. You laugh at danger, and have come to
+        Castle Ravenloft to satisfy your curiosity and acquire treasure.
+      </flavor>
+      <level level="1" class="Rogue" skills="Trap Expert" ac="14" hp="8" surge="4" speed="6">
+        <powers>
+          <power name="Sneak Attack" />
+          <power class="rogue" count="1" type="utility" />
+          <power class="rogue" count="2" type="atWill" />
+          <power class="rogue" count="1" type="daily" />
+        </powers>
+      </level>
+      <level level="2" skills="Critical Strike" ac="1" hp="2" surge="1">
+        <powers>
+          <power class="rogue" count="1" type="daily" />
+        </powers>
+      </level>
+    </hero>
+
+    <hero name="Thorgrim" race="Dwarf" tokenImg="map/thorgrim_token.png"
+          flavor="You are a champion of the dwarven gods, sent to eradicate the evil deep inside Castle Ravenloft.">
+      <level level="1" class="Cleric" skills="Aid" ac="16" hp="8" surge="4" speed="5">
+        <powers>
+          <power name="Healing Word" />
+          <power class="cleric" count="1" type="utility" />
+          <power class="cleric" count="2" type="atWill" />
+          <power class="cleric" count="1" type="daily" />
+        </powers>
+      </level>
+      <level level="2" skills="Critical Strike" ac="1" hp="2" surge="1">
+        <powers>
+          <power class="cleric" count="1" type="daily" />
+        </powers>
+      </level>
+    </hero>
+  </heroes>
+
+  <monsters>
+    <monster name="Blazing Skeleton" race="Undead" ac="13" hp="2" xp="2" count="3">
+      <tactics>
+        <tactic condition="any(hero, 1, tile)" effect="attack(0, tile, all, 7, 2, 0, selectClosest(hero))">
+          <description>
+            <b>If the Blazing Skeleton is within 1 tile of a hero</b>, it attacks each hero on the closest hero's tile with a
+            ball of fire.
+          </description>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the Blazing Skeleton moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Gargoyle" race="Elemental" ac="16" hp="2" xp="3" count="3">
+      <attacks>
+        <attack bonus="8" damage="2 Slowed" missDamage="1" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Gargoyle is within 1 tile of a Hero</b>, it moves to the closest hero's tile and attacks each hero on the
+            tile with a whirlwind of claws.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            if(distance(tile, H) != 0) place(SELF, H)
+            foreach(select(hero, 0, tile, all),
+            {
+              if(attack(ITEM, 8, 2, 1)) addMarker('Slowed', ITEM)
+            })
+          </effect>
+        </tactic>
+        <tactic>
+          <description>
+            <b>Otherwise</b>, the Gargoyle does nothing.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Ghoul" race="Undead" ac="16" hp="1" xp="2" count="3">
+      <attacks>
+        <attack name="bite" bonus="9" damage="3" />
+        <attack name="claw" bonus="7" damage="1 Immobilized" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)" effect="attack(1, square, 1, 9, 3)">
+          <description><b>If the ghoul is adjacent to a hero</b>, it attacks that hero with a rending <b>bite</b>.</description>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the ghoul is within 1 tile of a hero</b>, it moves adjacent to the closest hero and attack with a paralyzing
+            <b>claw</b>.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            if(attack(H, 7, 1)) addMarker('Immobilized', H)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the ghoul moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+    
+    <!-- TODO: this hasn't been implemented faithfully. (the owner of the card should change after the hag acts) -->
+    <monster name="Gray Hag" race="Fey" ac="14" hp="4" xp="4">
+      <tactics>
+        <tactic condition="any(hero, 1, tile)" effect="attack(0, tile, all, 6, 2, 0, selectClosest(hero))">
+          <description>
+            <b>If the hag is within 1 tile of a hero</b>, it attacks each hero on the closest hero's tile with a blast of
+            lightning.
+          </description>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the hag moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Kobold Skirmisher" race="Reptile" ac="13" hp="1" xp="1" count="3">
+      <tactics>
+        <tactic condition="any(hero, 1, tile)" effect="attack(selectClosest(hero), 9, 1)">
+          <description>
+            <b>If the Kobold is within 1 tile of a hero</b>, it attacks the closest hero with a thrown javelin.
+          </description>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the Kobold moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Rat Swarm" race="Animal" ac="12" hp="1" xp="1" count="3">
+      <tactics>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Rat Swarm is within 1 tile of a hero</b>, it moves to the closest hero's tile and attacks each hero on the
+            tile with a multitude of bites.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            if(distance(H) != 0) place(SELF, H)
+            attack(0, tile, all, 7, 1)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the Rat Swarm moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Skeleton" race="Undead" ac="16" hp="1" xp="2" count="3">
+      <attacks>
+        <attack name="scimitar" bonus="7" damage="1" />
+        <attack name="slice" bonus="9" damage="2" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)" effect="attack(1, square, 1, 7, 1)">
+          <description>
+            <b>If the Skeleton is adjacent to a hero</b>, it attacks that hero with a <b>scimitar</b>.
+          </description>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Skeleton is within 1 tile of a hero</b>, it moves adjacent to the closest hero and attacks that hero with
+            a charging <b>slice</b>.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 9, 2)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the Skeleton moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+    
+    <monster name="Spider" race="Vermin" ac="15" hp="1" xp="2" count="3">
+      <attacks>
+        <attack name="bite" bonus="6" damage="2" missDamage="1" />
+        <attack name="web" bonus="11" damage="1 Slowed" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)" effect="attack(1, square, 1, 6, 2, 1)">
+          <description>
+            <b>If the Spider is adjacent to a hero</b>, it attacks that hero with a venomous <b>bite</b>.
+          </description>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Spider is within 1 tile of a hero</b>, it attacks the closest hero with an acidic <b>web</b>.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            if(attack(H, 11, 1)) addMarker('Slowed', H)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero), 2)">
+          <description>
+            <b>Otherwise</b>, the Spider moves 2 tiles toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Wolf" race="Animal" ac="14" hp="1" xp="1" count="3">
+      <attacks>
+        <attack name="bite" bonus="5" damage="2" />
+        <attack name="pounce" bonus="7" damage="1" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)" effect="attack(1, square, 1, 5, 2)">
+          <description>
+            <b>If the Wolf is adjacent to a hero</b>, it attacks that hero with a <b>bite</b>.
+          </description>
+        </tactic>
+        <tactic condition="any(hero, 2, tile)">
+          <description>
+            <b>If the Wolf is within 2 tiles of a hero</b>, it moves adjacent to the closest hero and attacks that hero
+            with a pounce.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 7, 1)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero), 2)">
+          <description>
+            <b>Otherwise</b>, the Wolf moves 2 tiles toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Wraith" race="Undead" ac="15" hp="2" xp="3" count="3">
+      <powers>
+        <power name="Death Shriek" condition="wasDamaged() and SELF.hp == 0" effect="damage(1, select(hero, 0, tile, all))"
+               description="When this monster is destroyed, each hero on its tile takes 1 damage." />
+      </powers>
+      <tactics>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Wraith is within 1 tile of a hero</b>, it moves adjacent to the closest hero and attacks that hero with a
+            life-draining claw.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 6, 3, 1)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description>
+            <b>Otherwise</b>, the Wraith moves 1 tile toward the closest hero.
+          </description>
+        </tactic>
+      </tactics>
+    </monster>
+
+    <monster name="Zombie" race="Undead" ac="11" hp="1" xp="1" count="3">
+      <attacks>
+        <attack bonus="5" damage="1 for each monster on the tile" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Zombie is within 1 tile of a hero</b>, it moves adjacent to the closest hero and attacks that hero with a
+            rotting fist.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 5, count(monster, 0, tile))
+          </effect>
+        </tactic>
+      </tactics>
+    </monster>
+  </monsters>
+  
+  <villains>
+    <villain name="Count Strahd von Zarovich" race="Vampire" ac="19" hp="12"
+             flavor="The master of Castle Ravenloft is known as &quot;the devil&quot; to the villagers of Barovia.">
+      <attacks>
+        <attack name="bite" bonus="8" damage="2 and Strahd regains 1 hit point" />
+        <attack name="magical ball of fire" bonus="8" damage="2" missDamage="1" />
+      </attacks>
+      <powers>
+        <power condition="wasSpawned()" effect="addMarker('Mist Form')" />
+      </powers>
+      <tactics>
+        <tactic condition="SELF.hp &lt;= 5 and hasMarker('Mist Form')">
+          <description>
+            <b>If Strahd has 5 Hit Points or fewer remaining and the Mist Form token is on this card</b>, Strahd transforms into
+            a cloud of mist and floats away! Remove the Mist Form token from this card and place Strahd on the Strahd's Crypt
+            tile.
+          </description>
+          <effect>
+            removeMarker('Mist Form')
+            T = selectAny(tile, 1, ITEM.name == "Strahd's Crypt")
+            place(SELF, T)
+          </effect>
+        </tactic>
+        <tactic>
+          <description>
+            <b>If Strahd is within 1 tile of the hero with the most hit points remaining</b>, he moves adjacent to that hero and
+            attacks him or her with a blood draining bite.
+          </description>
+          <condition>
+            H = selectMax(hero, ITEM.hp, any)
+            H and any(hero, 1, tile, SELF, ITEM.hp == H.hp and any(freeSpace, 1, square, ITEM))
+          </condition>
+          <effect>
+            H = selectMax(select(hero, 1, tile, SELF, any(freeSpace, 1, square, ITEM)), ITEM.hp)
+            place(SELF, 1, square, H)
+            if(attack(H, 8, 2)) heal(1)
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If Strahd is within 1 tile of any other hero</b>, he moves 1 tile toward the hero with the most hit points
+            remaining, and then attacks each hero on the closest hero's tile with a magical ball of fire.
+          </description>
+          <effect>
+            moveToward(selectMax(hero, ITEM.hp))
+            attack(0, tile, all, 8, 2, 1, selectClosest(hero))
+          </effect>
+        </tactic>
+        <tactic condition="SELF.hp &lt;= 5">
+          <description>
+            <b>If Strahd has 5 or fewer hit points remaining</b>, choose the hero controlling the fewest monsters. That hero
+            places a new monster on Strahd's tile.
+          </description>
+          <effect>
+            H = selectMin(hero, count(ITEM.monsters))
+            place(spawn(monster, H))
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectMax(hero, ITEM.hp), 2)">
+          <description>
+            <b>Otherwise</b>, Strahd moves 2 tiles towards the hero with the most hit points remaining.
+          </description>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Flesh Golem" race="Undead" ac="14" hp="10" size="2"
+             flavor="Strahd's twisted experiment with death created a monster that has a shambling semblance of life.">
+      <attacks>
+        <attack name="slam" bonus="8" damage="2 and place the hero 1 tile deeper into the dungeon" missDamage="1" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)">
+          <description>
+            <b>If the Flesh Golem is adjacent to a hero</b>, it attacks an adjacent hero with a brutal <b>slam</b>.
+          </description>
+          <effect>
+            H = attack(1, square, 1, 8, 2, 1)
+            if(H)
+            {
+              S = selectAny(tile, 1, ITEM.name == 'Start')
+              D = distance(tile, H, S) + 1
+              place(H, 1, tile, SELF, distance(tile, ITEM, S) == D)
+            }
+          </effect>
+        </tactic>
+        <tactic condition="SELF.tile.name == 'Start'" effect="damage(1, HERO)">
+          <description><b>If the Flesh Golem is on a start tile</b>, the active hero takes 1 damage.</description>
+        </tactic>
+        <tactic effect="place(SELF, SELF.tile.shallowerTile)">
+          <description>
+            <b>Otherwise</b>, the Flesh Golem moves towards the start tile, in the direction of its tile's triangle.
+          </description>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <!-- TODO: how many tiles do these villains cover? -->
+    <villain name="Gravestorm" race="Undead" ac="14" hp="20" size="3" skills="Squeezing"
+             flavor="Lightning crackles from the mouth of Count Strahd's most prized servant.">
+      <attacks>
+        <attack name="blast of lightning" bonus="8" damage="3" missDamage="1" />
+        <attack name="bite" bonus="8" damage="2 and place the hero 1 tile in the direction of his or her tile's triangle" />
+        <attack name="burst of lightning" bonus="8" damage="1" />
+      </attacks>
+      <powers>
+        <power condition="wasSpawned()" effect="addMarker('Dragon\'s Breath')" />
+      </powers>
+      <tactics>
+        <tactic condition="hasMarker('Dragon\'s Breath') and count(hero, 1, tile) &gt;= 2">
+          <description>
+            <b>If the Dragon's Breath token is on this card and Gravestorm is within 1 tile of two or more heroes</b>, remove the
+            token, and then Gravestorm attacks each hero within 1 tile of it with a blast of lightning.
+          </description>
+          <effect>
+            removeMarker("Dragon's Breath")
+            attack(1, tile, all, 8, 3, 1)
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description><b>If Gravestorm is within 1 tile of a hero</b>, it attacks the closest hero with a bite.</description>
+          <effect>
+            H = selectClosest(hero)
+            if(attack(H, 8, 2)) place(H, H.tile.shallowerTile)
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 3, tile)">
+          <description>
+            <b>If Gravestorm is within 3 tiles of a hero</b>, it moves 1 tile toward the hero with the most hit points, and then
+            attacks each hero on the closest hero's tile with a burst of lightning.
+          </description>
+          <effect>
+            moveToward(selectMax(hero, ITEM.hp))
+            attack(0, tile, all, 8, 1, 0, selectClosest(hero))
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectMax(hero, ITEM.hp))">
+          <description>
+            <b>Otherwise</b>, Gravestorm moves 1 tile towards the hero with the most hit points remaining.
+          </description>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Howling Hag" race="Fey" ac="15" hp="10"
+             flavor="The Howling Hag is a mortal woman corrupted by the rituals of Strahd.">
+      <attacks>
+        <attack name="howl" bonus="7" damage="1 and place the hero 1 tile away from his or her tile" />
+        <attack name="curse" bonus="7" damage="1 and place the hero on a random Crypt Corner tile" />
+      </attacks>
+      <tactics>
+        <tactic condition="count(hero, 1, tile) &gt;= 2">
+          <description>
+            <b>If the hag is within 1 tile of two or more heroes</b>, she attacks each hero within 1 tile with a horrifying howl.
+          </description>
+          <effect>
+            foreach(select(hero, 1, tile, all),
+            {
+              H = ITEM
+              if(attack(H, 7, 1)) place(H, 1, tile, H, distance(tile, ITEM, H) != 0)
+            })
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 0, tile)">
+          <description><b>If the hag is on a tile with a hero</b>, she attacks that hero with a teleporting curse.</description>
+          <effect>
+            H = attack(0, tile, 1, 7, 1)
+            if(H) place(H, selectAnyRandom(tile, 1, ITEM.name == 'Crypt Corner'))
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, distance(ITEM) != null)"
+                effect="place(SELF, selectAnyRandom(tile, 1, ITEM.name == 'Crypt Corner'))">
+          <description><b>If the hag has no path to a hero</b>, place her on a random Crypt Corner tile.</description>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description><b>Otherwise</b>, the hag moves 1 tile toward the closest hero.</description>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Klak" race="Reptile" ac="14" hp="6"
+             flavor="The kobold sorcerer Klak oversees Lord Strahd's arcane experiments.">
+      <attacks>
+        <attack name="fire" bonus="8" damage="1 and place the hero 1 tile away from his or her tile" />
+      </attacks>
+      <tactics>
+        <!-- TODO: implement Klak's first tactic -->
+        <tactic condition="any(SELF.tile.unexploredEdges)" effect="explore(draw(dungeon, bottom))">
+          <description>
+            <b>If Klak is on a tile with an unexplored edge</b>, draw a tile from the bottom of the dungeon tile stack and place
+            it adjacent to the unexplored edge. The active hero places a new monster on the new tile.
+          </description>
+        </tactic>
+        <tactic condition="any(hero, 0, tile)">
+          <description>
+            <b>If Klak is on a tile with a hero</b>, he attacks each hero on the tile with a burst of fire.
+          </description>
+          <effect>
+            foreach(select(hero, 0, tile, all),
+            {
+              H = ITEM
+              if(attack(H, 8, 1)) place(H, 1, tile, H, distance(tile, ITEM, H) != 0)
+            })
+          </effect>
+        </tactic>
+        <!-- TODO: does this apply to just one monster, or to all? -->
+        <tactic condition="any(monster, 0, tile)" effect="activate(select(monster, 0, tile, all))">
+          <description><b>If Klak is on a tile with a monster, activate that monster.</b></description>
+        </tactic>
+        <tactic>
+          <description><b>Otherwise</b>, Klak teleports; place him on the closest tile with an unexplored edge.</description>
+          <effect>
+            T = selectClosest(tile, 1, any(ITEM.unexploredEdges))
+            if(T) place(SELF, T)
+          </effect>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Werewolf" race="Animal" ac="15" hp="5"
+             flavor="The monster's eyes and laughter are human. Pure evil. But human.">
+      <attacks>
+        <attack name="swipe" bonus="7" damage="3 and place the hero 2 tiles away from his or her tile" />
+        <attack name="bite" bonus="7" damage="1" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 1, square)">
+          <description>
+            <b>If the werewolf is adjacent to a hero</b>, it regains 1 hit point and attacks all adjacent heroes with a frenzied
+            <b>swipe</b>.
+          </description>
+          <effect>
+            if(!hasMarker("Can't Regenerate")) heal(1)
+            foreach(select(hero, 1, square, all),
+            {
+              H = ITEM
+              if(attack(H, 7, 3)) place(H, 2, tile, H, distance(tile, ITEM, H) == 2)
+            }
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 2, tile)">
+          <description>
+            <b>If the werewolf is within 2 tiles of a hero</b>, it regains 1 hit point, moves adjacent to the closest hero, and
+            attacks that hero with a <b>bite</b>.
+          </description>
+          <effect>
+            if(!hasMarker("Can't Regenerate")) heal(1)
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 7, 1)
+          </effect>
+        </tactic>
+        <tactic>
+          <description>
+            <b>Otherwise</b>, the werewolf regains 1 hit point and moves 2 tiles toward the closest hero.
+          </description>
+          <effect>
+            if(!hasMarker("Can't Regenerate")) heal(1)
+            moveToward(selectClosest(hero), 2)
+          </effect>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Young Vampire" race="Undead" ac="16" hp="8">
+      <flavor>
+        The new spawn of Strahd fought the transformation as long as possible, but the force of evil is relentless.
+      </flavor>
+      <attacks>
+        <attack name="fangs" bonus="8" damage="2 the vampire regains 1 hit point and moves 1 tile in the direction of his tile's triangle" />
+        <attack name="gaze" bonus="6" damage="1 and place the hero 1 tile deeper into the dungeon" />
+      </attacks>
+      <tactics>
+        <!-- TODO: does this affect all or just one? -->
+        <tactic condition="any(hero, 1, square)">
+          <description>
+            <b>If the Young Vampire is adjacent to a hero</b>, it attacks that hero with claws and <b>fangs</b>.
+          </description>
+          <effect>
+            if(attack(1, square, 1, 8, 2))
+            {
+              heal(1)
+              place(SELF, SELF.tile.shallowerTile)
+            }
+          </effect>
+        </tactic>
+        <tactic condition="count(hero, 1, tile) &gt;= 2">
+          <description>
+            <b>If the Young Vampire is within 1 tile of two or more heroes</b>, it attacks each hero within 1 tile of it with a
+            hypnotic gaze.
+          </description>
+          <effect>
+            S = selectAny(tile, 1, ITEM.name == 'Start')
+            foreach(select(hero, 1, tile, all),
+            {
+              if(attack(ITEM, 6, 1))
+              {
+                D = distance(tile, ITEM, START) + 1
+                T = select(tile, 1, tile, 1, H, distance(tile, ITEM, S) == D)
+              }
+            })
+          </effect>
+        </tactic>
+        <tactic condition="SELF.tile.name == 'Start'" effect="damage(1, HERO)">
+          <description><b>If the Young Vampire is on a start tile</b>, the active hero takes 1 damage.</description>
+        </tactic>
+        <tactic effect="place(SELF, SELF.tile.shallowerTile)">
+          <description><b>Otherwise</b>, the Young Vampire moves 1 tile in the direction of the tile's triangle.</description>
+        </tactic>
+      </tactics>
+    </villain>
+
+    <villain name="Zombie Dragon" race="Undead" ac="13" hp="13" size="2"
+             flavor="Its rotting frame and shattered teeth can send you to an ugly death.">
+      <attacks>
+        <attack name="claws, wings, and tail" bonus="7" damage="1 Slowed and place the hero 1 tile away from his or her tile" />
+        <attack name="bite" bonus="7" damage="2" />
+      </attacks>
+      <tactics>
+        <tactic condition="any(hero, 0, tile)">
+          <description>
+            <b>If the Zombie Dragon is on a tile with a hero</b>, it attacks each hero on that tile with claws, wings, and tail.
+          </description>
+          <effect>
+            foreach(select(hero, 0, tile, all),
+            {
+              if(attack(ITEM, 7, 1))
+              {
+                H = ITEM
+                addMarker('Slowed', H)
+                place(H, 1, tile, H, distance(tile, ITEM, H) == 1)
+              }
+            })
+          </effect>
+        </tactic>
+        <tactic condition="any(hero, 1, tile)">
+          <description>
+            <b>If the Zombie Dragon is within 1 tile of a hero</b>, it moves adjacent to the closest hero and attacks with a
+            bite.
+          </description>
+          <effect>
+            H = selectClosest(hero)
+            place(SELF, 1, square, H)
+            attack(H, 7, 2)
+          </effect>
+        </tactic>
+        <tactic effect="moveToward(selectClosest(hero))">
+          <description><b>Otherwise</b>, the Zombie Dragon moves 1 tile toward the closest hero.</description>
+        </tactic>
+      </tactics>
+    </villain>
+  </villains>
+</g:game>
