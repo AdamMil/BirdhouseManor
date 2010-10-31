@@ -1,0 +1,437 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema targetNamespace="http://www.adammil.net/BirdhouseManor/game.xsd"
+           xmlns="http://www.adammil.net/BirdhouseManor/game.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:simpleType name="activation">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="immediate" />
+      <xs:enumeration value="interrupt" />
+      <xs:enumeration value="onTurn" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="builtinSquareType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="blank" />
+      <xs:enumeration value="continuation" />
+      <xs:enumeration value="floor" />
+      <xs:enumeration value="spawn" />
+      <xs:enumeration value="wall" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="character">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\S" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="difficulty">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="easy" />
+      <xs:enumeration value="hard" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="dungeonCardType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="random" />
+      <xs:enumeration value="special" />
+      <xs:enumeration value="start" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="location">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+,\d+" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="nonEmptyString">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\s*\S[\s\S]*" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="nonEmptyTrimmedString">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\S|\S.*?\S" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="powerType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="atWill" />
+      <xs:enumeration value="daily" />
+      <xs:enumeration value="utility" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="rotation">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="none" />
+      <xs:enumeration value="left" />
+      <xs:enumeration value="right" />
+      <xs:enumeration value="upsideDown" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="size">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+x\d+" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="supportedVersion">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="1" />
+      <xs:maxInclusive value="1" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="squarePlacement">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="center" />
+      <xs:enumeration value="fill" />
+      <xs:enumeration value="random" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="squareTypeName">
+    <xs:union memberTypes="nonEmptyTrimmedString builtinSquareType" />
+  </xs:simpleType>
+
+  <xs:complexType name="attack">
+    <xs:attribute name="bonus" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="damage" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="missDamage" type="nonEmptyTrimmedString" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" />
+  </xs:complexType>
+
+  <xs:complexType name="attacks">
+    <xs:sequence>
+      <xs:element name="attack" type="attack" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="cardBase" abstract="true">
+    <xs:sequence>
+      <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="description" type="markup" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="count" type="xs:nonNegativeInteger" default="1" />
+    <xs:attribute name="description" type="nonEmptyTrimmedString" />
+    <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="conditionalEffectCard">
+    <xs:complexContent>
+      <xs:extension base="cardBase">
+        <xs:sequence>
+          <xs:element name="condition" type="nonEmptyString" minOccurs="0" />
+          <xs:element name="effect" type="nonEmptyString" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="condition" type="nonEmptyString" />
+        <xs:attribute name="effect" type="nonEmptyString" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="conditionalEffectWithAttackCard">
+    <xs:complexContent>
+      <xs:extension base="conditionalEffectCard">
+        <xs:attribute name="attackBonus" type="nonEmptyString" />
+        <xs:attribute name="damage" type="nonEmptyString" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="effectCard">
+    <xs:complexContent>
+      <xs:extension base="cardBase">
+        <xs:sequence>
+          <xs:element name="effect" type="nonEmptyString" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="effect" type="nonEmptyString" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="effectWithAttackCard">
+    <xs:complexContent>
+      <xs:extension base="effectCard">
+        <xs:attribute name="attackBonus" type="nonEmptyString" />
+        <xs:attribute name="damage" type="nonEmptyString" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="dungeonCard">
+    <xs:sequence>
+      <xs:element name="layer" type="nonEmptyString" maxOccurs="unbounded" />
+      <xs:element name="square" type="dungeonCardSquare" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="count" type="xs:positiveInteger" default="1" />
+    <xs:attribute name="difficulty" type="difficulty" default="easy" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" />
+    <xs:attribute name="src" type="nonEmptyTrimmedString" />
+    <xs:attribute name="type" type="dungeonCardType" default="random" />
+  </xs:complexType>
+
+  <xs:complexType name="dungeonCardSquare">
+    <xs:attribute name="character" type="character" use="required" />
+    <xs:attribute name="location" type="location" use="required" />
+    <xs:attribute name="rotation" type="rotation" default="none" />
+  </xs:complexType>
+
+  <xs:complexType name="dungeonCards">
+    <xs:sequence>
+      <xs:element name="card" type="dungeonCard" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="defaultFloor" type="character" use="required" />
+    <xs:attribute name="tileSize" type="size" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="emptyMarkup" />
+
+  <xs:complexType name="encounterCards">
+    <xs:sequence>
+      <xs:element name="environment" type="conditionalEffectCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="event" type="effectWithAttackCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="trap" type="effectWithAttackCard" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="hero">
+    <xs:sequence>
+      <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="level" type="level" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="race" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="tokenImg" type="nonEmptyTrimmedString" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="heroes">
+    <xs:sequence>
+      <xs:element name="hero" type="hero" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="level">
+    <xs:sequence>
+      <xs:element name="powers" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="power" type="powerSelection" minOccurs="0" maxOccurs="unbounded" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="ac" type="xs:positiveInteger" />
+    <xs:attribute name="class" type="nonEmptyTrimmedString" />
+    <xs:attribute name="hp" type="xs:positiveInteger" />
+    <xs:attribute name="level" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="skills" type="nonEmptyTrimmedString" />
+    <xs:attribute name="speed" type="xs:positiveInteger" />
+    <xs:attribute name="surge" type="xs:positiveInteger" />
+  </xs:complexType>
+
+  <xs:complexType name="markup" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="b" type="markup" />
+      <xs:element name="br" type="emptyMarkup" />
+      <xs:element name="p" type="emptyMarkup" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="monsterBase">
+    <xs:sequence>
+      <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="attacks" type="attacks" minOccurs="0" />
+      <xs:element name="powers" type="monsterPowers" minOccurs="0" />
+      <xs:element name="tactics" type="tactics" />
+    </xs:sequence>
+    <xs:attribute name="ac" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="class" type="nonEmptyTrimmedString" />
+    <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
+    <xs:attribute name="hp" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="race" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="size" type="xs:positiveInteger" default="1" />
+    <xs:attribute name="skills" type="nonEmptyTrimmedString" />
+  </xs:complexType>
+
+  <xs:complexType name="monster">
+    <xs:complexContent>
+      <xs:extension base="monsterBase">
+        <xs:attribute name="count" type="xs:nonNegativeInteger" default="1" />
+        <xs:attribute name="xp" type="xs:nonNegativeInteger" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="monsterPowerBase">
+    <xs:complexContent>
+      <xs:restriction base="conditionalEffectWithAttackCard">
+        <xs:attribute name="count" use="prohibited" />
+        <xs:attribute name="flavor" use="prohibited" />
+      </xs:restriction>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="monsterPower">
+    <xs:complexContent>
+      <xs:extension base="monsterPowerBase">
+        <xs:attribute name="name" type="nonEmptyTrimmedString" use="optional" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <xs:complexType name="monsterPowers">
+    <xs:sequence>
+      <xs:element name="power" type="monsterPower" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="monsters">
+    <xs:sequence>
+      <xs:element name="monster" type="monster" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="power">
+    <xs:complexContent>
+      <xs:extension base="conditionalEffectWithAttackCard">
+        <xs:attribute name="class" type="nonEmptyTrimmedString" />
+        <xs:attribute name="isAttack" type="xs:boolean" default="true" />
+        <xs:attribute name="isMove" type="xs:boolean" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="powerSelection">
+    <xs:attribute name="class" type="nonEmptyTrimmedString" />
+    <xs:attribute name="count" type="xs:positiveInteger" default="1" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" />
+    <xs:attribute name="type" type="powerType" />
+  </xs:complexType>
+
+  <xs:complexType name="powers">
+    <xs:sequence>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="atWill" type="power" />
+        <xs:element name="daily" type="power" />
+        <xs:element name="utility" type="power" />
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="square">
+    <xs:attribute name="character" type="character" use="required" />
+    <xs:attribute name="placement" type="squarePlacement" default="center" />
+    <xs:attribute name="size" type="size" default="1x1" />
+    <xs:attribute name="src" type="nonEmptyTrimmedString" />
+    <xs:attribute name="type" type="squareTypeName" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="squareType">
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="isObject" type="xs:boolean" />
+  </xs:complexType>
+
+  <xs:complexType name="squareTypes">
+    <xs:sequence>
+      <xs:element name="squareType" type="squareType" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="squares">
+    <xs:sequence>
+      <xs:element name="square" type="square" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="squareSize" type="size" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="tactic">
+    <xs:sequence>
+      <xs:element name="description" type="markup" minOccurs="0" />
+      <xs:element name="condition" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="effect" type="nonEmptyString" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="condition" type="nonEmptyTrimmedString" />
+    <xs:attribute name="description" type="nonEmptyTrimmedString" />
+    <xs:attribute name="effect" type="nonEmptyTrimmedString" />
+  </xs:complexType>
+
+  <xs:complexType name="tactics">
+    <xs:sequence>
+      <xs:element name="tactic" type="tactic" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="token">
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="description" type="nonEmptyTrimmedString" />
+    <xs:attribute name="tokenImg" type="nonEmptyTrimmedString" />
+    <xs:attribute name="iconImg" type="nonEmptyTrimmedString" />
+    <xs:attribute name="isCondition" type="xs:boolean" />
+  </xs:complexType>
+
+  <xs:complexType name="tokens">
+    <xs:sequence>
+      <xs:element name="token" type="token" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="treasureCards">
+    <xs:sequence>
+      <xs:element name="blessing" type="effectCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="fortune" type="effectCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="item" type="treasureItemCard" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="treasureItemCard">
+    <xs:complexContent>
+      <xs:extension base="conditionalEffectWithAttackCard">
+        <xs:attribute name="activation" type="activation" default="immediate" />
+        <xs:attribute name="discard" type="xs:boolean" default="true" />
+        <xs:attribute name="isAttack" type="xs:boolean" default="false" />
+        <xs:attribute name="isMove" type="xs:boolean" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="villains">
+    <xs:sequence>
+      <xs:element name="villain" type="monsterBase" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="game">
+    <xs:sequence>
+      <xs:element name="squareTypes" type="squareTypes" minOccurs="0" />
+      <xs:element name="squares" type="squares" />
+      <xs:element name="tokens" type="tokens" minOccurs="0" />
+      <xs:element name="dungeonCards" type="dungeonCards" />
+      <xs:element name="encounterCards" type="encounterCards" />
+      <xs:element name="treasureCards" type="treasureCards" />
+      <xs:element name="powers" type="powers" />
+      <xs:element name="heroes" type="heroes" />
+      <xs:element name="monsters" type="monsters" />
+      <xs:element name="villains" type="villains" minOccurs="0" />
+    </xs:sequence>
+    <xs:attribute name="assembly" type="nonEmptyTrimmedString" />
+    <xs:attribute name="creator" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="porter" type="nonEmptyTrimmedString" />
+    <xs:attribute name="version" type="xs:integer" use="required" />
+    <xs:attribute name="schemaVersion" type="supportedVersion" use="required" />
+  </xs:complexType>
+
+  <xs:element name="game" type="game" />
+
+</xs:schema>
