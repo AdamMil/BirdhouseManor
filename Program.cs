@@ -25,7 +25,8 @@ static class Program
 
   static void Main()
   {
-    Game game = new Game(Path.Combine(DataPath, "games/CastleRavenloft/game.xml"));
+    SDLUserInterface ui = new SDLUserInterface();
+    ui.Run();
   }
 
   static string _dataPath;

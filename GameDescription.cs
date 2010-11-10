@@ -8,6 +8,8 @@ using System.Linq;
 using System.Xml;
 using System.Xml.Schema;
 using AdamMil.Utilities;
+using AdamMil.Collections;
+using Polygon = AdamMil.Mathematics.Geometry.TwoD.Polygon;
 
 namespace BirdhouseManor
 {
@@ -17,7 +19,7 @@ public abstract class ActionCardBase : CardBase
 {
   protected ActionCardBase() { }
   
-  protected ActionCardBase(XmlNode node) : base(node)
+  protected ActionCardBase(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
     IsAttack = node.GetBoolAttribute("isAttack");
     IsMove   = node.GetBoolAttribute("isMove");
@@ -45,11 +47,11 @@ sealed class Attack : NamedGameObject
 #endregion
 
 #region CardBase
-public abstract class CardBase : NamedGameObjectWithCount
+public abstract class CardBase : NamedGameObjectWithCountAndTemplate
 {
   protected CardBase() { }
 
-  protected CardBase(XmlNode node) : base(node)
+  protected CardBase(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
     AttackBonusText   = node.GetAttributeValue("attackBonus");
     DamageText        = node.GetAttributeValue("damage");
@@ -69,6 +71,181 @@ public abstract class CardBase : NamedGameObjectWithCount
 
   public abstract bool CanTakeEffect();
   public abstract void Use();
+}
+#endregion
+
+#region CardTemplate
+public sealed class CardTemplate
+{
+  internal CardTemplate(XmlNode node, Dictionary<string,CardTemplate> templatesById)
+  {
+    string baseValue = node.GetAttributeValue("base");
+    if(!string.IsNullOrEmpty(baseValue))
+    {
+      if(!templatesById.ContainsKey(baseValue))
+      {
+        throw new XmlSchemaValidationException("Card template with ID \"" + baseValue + "\" doesn't exist.");
+      }
+      BaseCard = templatesById[baseValue];
+    }
+
+    Dictionary<string, string> content = new Dictionary<string, string>();
+    List<CardTemplatePiece> pieces = new List<CardTemplatePiece>();
+    foreach(XmlNode child in node.ChildNodes)
+    {
+      if(StringUtility.OrdinalEquals(child.LocalName, "content"))
+      {
+        string name = child.GetAttributeValue("name");
+        if(content.ContainsKey(name))
+        {
+          throw new XmlSchemaValidationException("Card template content \"" + name + "\" defined multiple times.");
+        }
+        content.Add(name, child.GetInnerText(child.GetAttributeValue("value")));
+      }
+      else
+      {
+        if(StringUtility.OrdinalEquals(child.LocalName, "img")) pieces.Add(new CardTemplateImage(child));
+        else if(StringUtility.OrdinalEquals(child.LocalName, "placeholder")) pieces.Add(new CardTemplatePlaceholder(child));
+        else if(StringUtility.OrdinalEquals(child.LocalName, "text")) pieces.Add(new CardTemplateText(child));
+      }
+    }
+
+    HashSet<string> placeholderNames = new HashSet<string>();
+    foreach(CardTemplatePiece piece in pieces)
+    {
+      CardTemplatePlaceholder placeholder = piece as CardTemplatePlaceholder;
+      if(placeholder != null && !placeholderNames.Add(placeholder.Name))
+      {
+        throw new XmlSchemaValidationException("Card template placeholder \"" + placeholder.Name + "\" defined multiple times.");
+      }
+    }
+
+    Content = content.Count == 0 ? NoContent : new ReadOnlyDictionaryWrapper<string, string>(content);
+    Pieces  = pieces.Count == 0 ? NoPieces : new ReadOnlyCollection<CardTemplatePiece>(pieces.ToArray());
+  }
+
+  public CardTemplate BaseCard { get; private set; }
+  public ReadOnlyDictionaryWrapper<string, string> Content { get; private set; }
+  public ReadOnlyCollection<CardTemplatePiece> Pieces { get; private set; }
+
+  static ReadOnlyDictionaryWrapper<string,string> NoContent =
+    new ReadOnlyDictionaryWrapper<string,string>(new Dictionary<string,string>(0));
+  static ReadOnlyCollection<CardTemplatePiece> NoPieces = new ReadOnlyCollection<CardTemplatePiece>(new CardTemplatePiece[0]);
+}
+#endregion
+
+#region CardTemplateImage
+public sealed class CardTemplateImage : CardTemplatePiece
+{
+  internal CardTemplateImage(XmlNode node) : base(node, "tint")
+  {
+    ImagePath = node.GetAttributeValue("src");
+  }
+
+  public string ImagePath { get; private set; }
+
+  public override string ToString()
+  {
+    return "Image: " + ImagePath;
+  }
+}
+#endregion
+
+#region CardTemplatePiece
+public abstract class CardTemplatePiece
+{
+  protected CardTemplatePiece(XmlNode node, string colorAttributeName)
+  {
+    string[] pointStrings = node.GetAttributeValue("area").Split('-', s => s.Trim());
+    Point[] points = new Point[pointStrings.Length];
+    for(int i=0; i<points.Length; i++)
+    {
+      string pointStr = pointStrings[i];
+      int comma = pointStr.IndexOf(',');
+      points[i] = new Point(int.Parse(pointStr.Substring(0, comma), CultureInfo.InvariantCulture),
+                            int.Parse(pointStr.Substring(comma+1), CultureInfo.InvariantCulture));
+    }
+
+    if(points.Length == 2) // if there are only two points, they represent the top-left and bottom-right corners of a rectangle
+    {
+      if(points[0].X >= points[1].X || points[0].Y >= points[1].Y)
+      {
+        throw new XmlSchemaValidationException("Card template area \"" + node.GetAttributeValue("area") +
+          "\" is invalid (because the first point is not above and to the left of the second).");
+      }
+      RectangleArea = new Rectangle(points[0].X, points[0].Y, points[1].X-points[0].X+1, points[1].Y-points[0].Y+1);
+    }
+    else // otherwise, the points are considered to represent a polygon
+    {
+      PolygonArea = new Polygon(points.Length);
+      foreach(Point point in points) PolygonArea.AddPoint(new AdamMil.Mathematics.Geometry.TwoD.Point(point));
+      // TODO: we should add a test that the polygon is simple. but that's not simple.
+      RectangleArea = PolygonArea.GetBounds().ToRectangle(); // and the rectangle becomes the bounding box
+    }
+
+    string color = node.GetAttributeValue(colorAttributeName);
+    if(!string.IsNullOrEmpty(color))
+    {
+      if(color[0] == '#')
+      {
+        byte[] bytes = StringUtility.FromHex(color.Substring(1));
+        Color = Color.FromArgb(bytes.Length == 4 ? bytes[3] : 255, bytes[0], bytes[1], bytes[2]);
+      }
+      else
+      {
+        Color = Color.FromName(color.Substring(0, 1).ToUpperInvariant() + color.Substring(1));
+      }
+    }
+  }
+
+  public Color Color { get; private set; }
+  public Polygon PolygonArea { get; private set; }
+  public Rectangle RectangleArea { get; private set; }
+}
+#endregion
+
+#region CardTemplatePlaceholder
+public sealed class CardTemplatePlaceholder : CardTemplatePiece
+{
+  internal CardTemplatePlaceholder(XmlNode node) : base(node, "color")
+  {
+    Name = node.GetAttributeValue("name");
+    Type = (CardTemplatePlaceholderType)Enum.Parse(typeof(CardTemplatePlaceholderType), node.GetAttributeValue("type"), true);
+  }
+
+  public string Name { get; private set; }
+  public CardTemplatePlaceholderType Type { get; private set; }
+
+  public override string ToString()
+  {
+    return Type.ToString() + " placeholder: " + Name;
+  }
+}
+#endregion
+
+#region CardTemplatePlaceholderType
+public enum CardTemplatePlaceholderType
+{
+  Image, Text
+}
+#endregion
+
+#region CardTemplateText
+public sealed class CardTemplateText : CardTemplatePiece
+{
+  internal CardTemplateText(XmlNode node) : base(node, "color")
+  {
+    Size = node.GetInt32Attribute("size");
+    Text = node.GetInnerText(node.GetAttributeValue("text"));
+  }
+
+  public int Size { get; private set; }
+  public string Text { get; private set; }
+
+  public override string ToString()
+  {
+    return "Text: " + Text;
+  }
 }
 #endregion
 
@@ -145,8 +322,9 @@ public abstract class EncounterCard : CardBase
 {
   protected EncounterCard() { }
 
-  protected EncounterCard(XmlNode node) : base(node)
+  protected EncounterCard(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
+    AssertHasTemplate();
     Type = (EncounterCardType)Enum.Parse(typeof(EncounterCardType), node.LocalName, true);
   }
 
@@ -167,9 +345,9 @@ public enum EncounterCardType
 #endregion
 
 #region EntityClass
-abstract class EntityClass : NamedGameObjectWithCount
+abstract class EntityClass : NamedGameObjectWithCountAndTemplate
 {
-  internal EntityClass(XmlNode node) : base(node)
+  internal EntityClass(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
     FlavorText = node.GetAttributeValue("flavor");
     Race       = node.GetAttributeValue("race");
@@ -211,19 +389,35 @@ sealed class Game
       throw new NotSupportedException("Only version 1 game files are supported by this version of Birdhouse Manor.");
     }
 
+    Dictionary<string, CardTemplate> cardTemplates = new Dictionary<string, CardTemplate>();
     LoadAssembly(doc.DocumentElement.GetAttributeValue("assembly"));
+    LoadCardTemplates(doc.DocumentElement.SelectSingleNode("cardTemplates"), cardTemplates);
     LoadSquares(doc.DocumentElement.SelectSingleNode("squareTypes"),
                 doc.DocumentElement.SelectSingleNode("squares"));
     LoadTokenTypes(doc.DocumentElement.SelectSingleNode("tokens"));
     LoadDungeonCards(doc.DocumentElement.SelectSingleNode("dungeonCards"));
-    LoadEncounterCards(doc.DocumentElement.SelectSingleNode("encounterCards"));
-    LoadTreasureCards(doc.DocumentElement.SelectSingleNode("treasureCards"));
-    LoadPowerCards(doc.DocumentElement.SelectSingleNode("powers"));
+    LoadEncounterCards(doc.DocumentElement.SelectSingleNode("encounterCards"), cardTemplates);
+    LoadTreasureCards(doc.DocumentElement.SelectSingleNode("treasureCards"), cardTemplates);
+    LoadPowerCards(doc.DocumentElement.SelectSingleNode("powers"), cardTemplates);
     LoadSkills();
-    LoadHeroes(doc.DocumentElement.SelectSingleNode("heroes"));
-    LoadMonsters(doc.DocumentElement.SelectSingleNode("monsters"));
-    LoadMonsters(doc.DocumentElement.SelectSingleNode("villains"));
+    LoadHeroes(doc.DocumentElement.SelectSingleNode("heroes"), cardTemplates);
+
+    List<MonsterClass> monsters = new List<MonsterClass>();
+    LoadMonsters(monsters, doc.DocumentElement.SelectSingleNode("monsters"), cardTemplates);
+    LoadMonsters(monsters, doc.DocumentElement.SelectSingleNode("villains"), cardTemplates);
+    MonsterCards = new ReadOnlyCollection<MonsterClass>(monsters.ToArray());
+
+    // TODO: verify that referenced images exist
   }
+
+  public ReadOnlyCollection<CardTemplate> CardTemplates { get; private set; }
+  public ReadOnlyCollection<DungeonCard> DungeonCards { get; private set; }
+  public ReadOnlyCollection<EncounterCard> EncounterCards { get; private set; }
+  public ReadOnlyCollection<HeroClass> Heroes { get; private set; }
+  public ReadOnlyCollection<MonsterClass> MonsterCards { get; private set; }
+  public ReadOnlyCollection<PowerCard> PowerCards { get; private set; }
+  public ReadOnlyCollection<Skill> Skills { get; private set; }
+  public ReadOnlyCollection<TreasureCard> TreasureCards { get; private set; }
 
   /// <summary>Gets the directory containing the game.xml file from which the <see cref="Game"/> object was initialized.</summary>
   public string GameDirectory { get; private set; }
@@ -246,8 +440,45 @@ sealed class Game
     }
   }
 
+  void LoadCardTemplates(XmlNode cardTemplatesNode, Dictionary<string,CardTemplate> cardTemplatesById)
+  {
+    // build a map of template ID to template node, so we can quickly look up base template nodes
+    Dictionary<string, XmlNode> nodesById = new Dictionary<string, XmlNode>();
+    foreach(XmlNode node in cardTemplatesNode.ChildNodes) nodesById.Add(node.GetAttributeValue("id"), node);
+
+    try
+    {
+      // perform a topological sort of the template nodes to get them in the right order (i.e. so that base templates are loaded
+      // before the templates that depend on them) and to detect dependency cycles
+      Converter<XmlNode, IEnumerable<XmlNode>> getDependencies = node =>
+      {
+        string baseId = node.GetAttributeValue("base");
+        if(string.IsNullOrEmpty(baseId)) return new XmlNode[0]; // if the node has no base ID, then it has no dependencies
+
+        // otherwise, look up the dependency and return it
+        XmlNode baseNode;
+        if(!nodesById.TryGetValue(baseId, out baseNode))
+        {
+          throw new XmlSchemaValidationException("Card template with ID \"" + baseId + "\" doesn't exist.");
+        }
+        return new XmlNode[] { baseNode };
+      };
+
+      foreach(XmlNode node in cardTemplatesNode.ChildNodes.Cast<XmlNode>().TopologicalSort(getDependencies))
+      {
+        cardTemplatesById.Add(node.GetAttributeValue("id"), new CardTemplate(node, cardTemplatesById));
+      }
+    }
+    catch(CycleException ex)
+    {
+      throw new XmlSchemaValidationException("A cycle was detected in card templates, involving ID \"" +
+                                             ((XmlNode)ex.ObjectInvolved).GetAttributeValue("id") + "\".");
+    }
+  }
+
   void LoadDungeonCards(XmlNode dungeonCardsNode)
   {
+    List<DungeonCard> dungeonCards = new List<DungeonCard>();
     TileSize = GameXmlUtilities.ParseSize(dungeonCardsNode.GetAttributeValue("tileSize"));
 
     // build a map of square versions by character
@@ -275,7 +506,7 @@ sealed class Game
         }
 
         // if the character maps to a continuation square, keep track of the character
-        if(StringUtility.ExactlyEquals(version.Square.Name, SquareType.ContinuationName))
+        if(StringUtility.OrdinalEquals(version.Square.Name, SquareType.ContinuationName))
         {
           if(continuationChar != '\0')
           {
@@ -332,14 +563,14 @@ sealed class Game
           string squareType = versions[0].Square.Name;
 
           // if it's the first square in this position and it's not a floor or wall, add the default floor first
-          if(squares[i].Count == 0 && !StringUtility.ExactlyEquals(squareType, SquareType.FloorName) &&
-             !StringUtility.ExactlyEquals(squareType, SquareType.WallName))
+          if(squares[i].Count == 0 && !StringUtility.OrdinalEquals(squareType, SquareType.FloorName) &&
+             !StringUtility.OrdinalEquals(squareType, SquareType.WallName))
           {
             squares[i].Add(defaultFloor);
           }
 
           // if it's a blank square or a continuation, don't add anything else
-          if(StringUtility.ExactlyEquals(squareType, SquareType.BlankName) || layer[i] == continuationChar) continue;
+          if(StringUtility.OrdinalEquals(squareType, SquareType.BlankName) || layer[i] == continuationChar) continue;
 
           Size size = versions[0].Size;
           Rotation rotation = Rotation.None;
@@ -448,12 +679,16 @@ sealed class Game
       // clear the lists in preparation for the next card
       foreach(var list in squares) list.Clear();
     }
+
+    DungeonCards = new ReadOnlyCollection<DungeonCard>(dungeonCards.ToArray());
   }
 
-  void LoadEncounterCards(XmlNode cardsNode)
+  void LoadEncounterCards(XmlNode cardsNode, Dictionary<string,CardTemplate> cardTemplatesById)
   {
-    foreach(XmlNode node in cardsNode.ChildNodes) encounterCards.Add(new XmlEncounterCard(node));
+    List<EncounterCard> encounterCards = new List<EncounterCard>();
+    foreach(XmlNode node in cardsNode.ChildNodes) encounterCards.Add(new XmlEncounterCard(node, cardTemplatesById));
     LoadFromAssembly(encounterCards);
+    EncounterCards = new ReadOnlyCollection<EncounterCard>(encounterCards.ToArray());
   }
 
   void LoadFromAssembly<T>(List<T> list)
@@ -471,28 +706,34 @@ sealed class Game
     }
   }
 
-  void LoadHeroes(XmlNode heroesNode)
+  void LoadHeroes(XmlNode heroesNode, Dictionary<string, CardTemplate> cardTemplatesById)
   {
-    foreach(XmlNode node in heroesNode.ChildNodes) heroes.Add(new HeroClass(node, powerCards, skills));
+    List<HeroClass> heroes = new List<HeroClass>();
+    foreach(XmlNode node in heroesNode.ChildNodes) heroes.Add(new HeroClass(node, cardTemplatesById, PowerCards, Skills));
+    Heroes = new ReadOnlyCollection<HeroClass>(heroes.ToArray());
   }
 
-  void LoadMonsters(XmlNode monstersNode)
+  void LoadMonsters(List<MonsterClass> monsters, XmlNode monstersNode, Dictionary<string, CardTemplate> cardTemplatesById)
   {
     if(monstersNode != null)
     {
-      foreach(XmlNode node in monstersNode.ChildNodes) monsters.Add(new MonsterClass(node));
+      foreach(XmlNode node in monstersNode.ChildNodes) monsters.Add(new MonsterClass(node, cardTemplatesById));
     }
   }
 
-  void LoadPowerCards(XmlNode powersNode)
+  void LoadPowerCards(XmlNode powersNode, Dictionary<string,CardTemplate> cardTemplatesById)
   {
-    foreach(XmlNode node in powersNode.ChildNodes) powerCards.Add(new XmlPowerCard(node));
+    List<PowerCard> powerCards = new List<PowerCard>();
+    foreach(XmlNode node in powersNode.ChildNodes) powerCards.Add(new XmlPowerCard(node, cardTemplatesById));
     LoadFromAssembly(powerCards);
+    PowerCards = new ReadOnlyCollection<PowerCard>(powerCards.ToArray());
   }
 
   void LoadSkills()
   {
+    List<Skill> skills = new List<Skill>();
     LoadFromAssembly(skills);
+    Skills = new ReadOnlyCollection<Skill>(skills.ToArray());
   }
 
   void LoadSquares(XmlNode typesNode, XmlNode squaresNode)
@@ -563,21 +804,16 @@ sealed class Game
     }
   }
 
-  void LoadTreasureCards(XmlNode cardsNode)
+  void LoadTreasureCards(XmlNode cardsNode, Dictionary<string, CardTemplate> cardTemplatesById)
   {
-    foreach(XmlNode node in cardsNode.ChildNodes) treasureCards.Add(new XmlTreasureCard(node));
+    List<TreasureCard> treasureCards = new List<TreasureCard>();
+    foreach(XmlNode node in cardsNode.ChildNodes) treasureCards.Add(new XmlTreasureCard(node, cardTemplatesById));
     LoadFromAssembly(treasureCards);
+    TreasureCards = new ReadOnlyCollection<TreasureCard>(treasureCards.ToArray());
   }
 
   readonly Dictionary<string, SquareType> squareTypes = new Dictionary<string, SquareType>();
   readonly Dictionary<string, TokenType> tokenTypes = new Dictionary<string, TokenType>();
-  readonly List<DungeonCard> dungeonCards = new List<DungeonCard>();
-  readonly List<EncounterCard> encounterCards = new List<EncounterCard>();
-  readonly List<HeroClass> heroes = new List<HeroClass>();
-  readonly List<MonsterClass> monsters = new List<MonsterClass>();
-  readonly List<PowerCard> powerCards = new List<PowerCard>();
-  readonly List<Skill> skills = new List<Skill>();
-  readonly List<TreasureCard> treasureCards = new List<TreasureCard>();
   System.Reflection.Assembly assembly;
 
   static char[] ParseLayer(string layerText)
@@ -619,24 +855,33 @@ static class GameXmlUtilities
 #region HeroClass
 sealed class HeroClass : EntityClass
 {
-  internal HeroClass(XmlNode node, List<PowerCard> availablePowers, List<Skill> availableSkills) : base(node)
+  internal HeroClass(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById, ICollection<PowerCard> availablePowers,
+                     ICollection<Skill> availableSkills) : base(node, cardTemplatesById)
   {
+    AssertHasTemplate();
+
     List<LevelDescription> levels = new List<LevelDescription>();
     foreach(XmlNode levelNode in node.SelectNodes("level"))
     {
       levels.Add(new LevelDescription(levelNode, availablePowers, availableSkills));
     }
+    levels.Sort((a, b) => a.Level - b.Level); // sort them so the earliest levels are first
     Levels = new ReadOnlyCollection<LevelDescription>(levels.ToArray());
   }
 
   public ReadOnlyCollection<LevelDescription> Levels { get; private set; }
+
+  public LevelDescription GetLevel(int levelNumber)
+  {
+    return Levels.FirstOrDefault(L => L.Level == levelNumber);
+  }
 }
 #endregion
 
 #region LevelDescription
 sealed class LevelDescription
 {
-  internal LevelDescription(XmlNode node, List<PowerCard> availablePowers, List<Skill> availableSkills)
+  internal LevelDescription(XmlNode node, ICollection<PowerCard> availablePowers, ICollection<Skill> availableSkills)
   {
     ACBonus    = node.GetInt32Attribute("ac");
     Class      = node.GetAttributeValue("class");
@@ -648,7 +893,7 @@ sealed class LevelDescription
     NewSkills = new ReadOnlyCollection<Skill>(StringUtility.Split(node.GetAttributeValue("skills"), ',', sn =>
     {
       string name = sn.Trim();
-      Skill skill = availableSkills.FirstOrDefault(s => StringUtility.ExactlyEquals(s.Name, name));
+      Skill skill = availableSkills.FirstOrDefault(s => StringUtility.OrdinalEquals(s.Name, name));
       if(skill == null) throw new XmlSchemaValidationException("A skill named \"" + name + "\" could not be found.");
       return skill;
     }, StringSplitOptions.RemoveEmptyEntries));
@@ -657,12 +902,12 @@ sealed class LevelDescription
     foreach(XmlNode powerNode in node.SelectNodes("powers/power"))
     {
       PowerSelection powerSelection =  new PowerSelection(powerNode);
-      if(!string.IsNullOrEmpty(powerSelection.Name) && !availablePowers.Any(p => powerSelection.Name.ExactlyEquals(p.Name)))
+      if(!string.IsNullOrEmpty(powerSelection.Name) && !availablePowers.Any(p => powerSelection.Name.OrdinalEquals(p.Name)))
       {
         throw new XmlSchemaValidationException("A power named \"" + powerSelection.Name + "\" could be found.");
       }
       else if(!string.IsNullOrEmpty(powerSelection.Class) &&
-              !availablePowers.Any(p => powerSelection.Class.ExactlyEquals(p.Class)))
+              !availablePowers.Any(p => powerSelection.Class.OrdinalEquals(p.Class)))
       {
         throw new XmlSchemaValidationException("No power class named \"" + powerSelection.Class + "\" could be found.");
       }
@@ -690,8 +935,10 @@ sealed class LevelDescription
 #region MonsterClass
 class MonsterClass : EntityClass
 {
-  internal MonsterClass(XmlNode node) : base(node)
+  internal MonsterClass(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
+    AssertHasTemplate();
+
     AC    = node.GetInt32Attribute("ac");
     Class = node.GetAttributeValue("class");
     HP    = node.GetInt32Attribute("hp");
@@ -699,7 +946,7 @@ class MonsterClass : EntityClass
     XP    = node.GetInt32Attribute("xp", 0);
 
     foreach(XmlNode attackNode in node.SelectNodes("attacks/attack")) attacks.Add(new Attack(attackNode));
-    foreach(XmlNode powerNode in node.SelectNodes("powers/power")) powers.Add(new XmlMonsterPower(powerNode));
+    foreach(XmlNode powerNode in node.SelectNodes("powers/power")) powers.Add(new XmlMonsterPower(powerNode, cardTemplatesById));
     foreach(XmlNode tacticNode in node.SelectNodes("tactics/tactic")) tactics.Add(new XmlTactic(tacticNode));
   }
 
@@ -719,7 +966,7 @@ class MonsterClass : EntityClass
 public abstract class MonsterPower : ActionCardBase
 {
   protected MonsterPower() { }
-  protected MonsterPower(XmlNode node) : base(node) { }
+  protected MonsterPower(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById) { }
 }
 #endregion
 
@@ -756,13 +1003,69 @@ public abstract class NamedGameObjectWithCount : NamedGameObject
 }
 #endregion
 
+#region NamedGameObjectWithCountAndTemplate
+public abstract class NamedGameObjectWithCountAndTemplate : NamedGameObjectWithCount
+{
+  protected NamedGameObjectWithCountAndTemplate() { }
+
+  protected NamedGameObjectWithCountAndTemplate(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node)
+  {
+    if(cardTemplatesById != null)
+    {
+      XmlNode cardNode = node.SelectSingleNode("card");
+      string id;
+      if(cardNode != null)
+      {
+        id = cardNode.GetAttributeValue("id");
+        if(!string.IsNullOrEmpty(id))
+        {
+          throw new XmlSchemaValidationException("Card template with ID \"" + id + "\" must not have an ID.");
+        }
+
+        Template = new CardTemplate(cardNode, cardTemplatesById);
+      }
+
+      id = node.GetAttributeValue("card");
+      if(!string.IsNullOrEmpty(id))
+      {
+        bool wasSpecified = node.Attributes["card"].Specified;
+        if(Template == null)
+        {
+          if(cardTemplatesById.ContainsKey(id))
+          {
+            Template = cardTemplatesById[id];
+          }
+          else if(wasSpecified)
+          {
+            throw new XmlSchemaValidationException("Card template with ID \"" + id + "\" doesn't exist.");
+          }
+        }
+        else if(wasSpecified) // if a card ID was specified along with the card node...
+        {
+          throw new XmlSchemaValidationException("Card has multiple templates (with IDs \"" + id + "\" and \"" +
+                                                 cardNode.GetAttributeValue("id") + "\").");
+        }
+      }
+    }
+  }
+
+  public CardTemplate Template { get; protected set; }
+
+  protected void AssertHasTemplate()
+  {
+    if(Template == null) throw new XmlSchemaValidationException("Card " + ToString() + " has no card template.");
+  }
+}
+#endregion
+
 #region PowerCard
 public abstract class PowerCard : ActionCardBase
 {
   protected PowerCard() { }
 
-  protected PowerCard(XmlNode node) : base(node)
+  protected PowerCard(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
+    AssertHasTemplate();
     Type  = (PowerCardType)Enum.Parse(typeof(PowerCardType), node.LocalName, true);
     Class = node.GetAttributeValue("class");
   }
@@ -940,8 +1243,9 @@ public abstract class TreasureCard : ActionCardBase
 {
   protected TreasureCard() { }
 
-  protected TreasureCard(XmlNode node) : base(node)
+  protected TreasureCard(XmlNode node, Dictionary<string,CardTemplate> cardTemplatesById) : base(node, cardTemplatesById)
   {
+    AssertHasTemplate();
     Type = (TreasureCardType)Enum.Parse(typeof(TreasureCardType), node.LocalName, true);
   }
 
@@ -964,7 +1268,7 @@ public enum TreasureCardType
 #region XmlEncounterCard
 sealed class XmlEncounterCard : EncounterCard
 {
-  internal XmlEncounterCard(XmlNode node) : base(node) { }
+  internal XmlEncounterCard(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node, cardTemplatesById) { }
 
   public override bool CanTakeEffect()
   {
@@ -981,7 +1285,7 @@ sealed class XmlEncounterCard : EncounterCard
 #region XmlMonsterPower
 sealed class XmlMonsterPower : MonsterPower
 {
-  internal XmlMonsterPower(XmlNode node) : base(node) { }
+  internal XmlMonsterPower(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node, cardTemplatesById) { }
 
   public override bool CanTakeEffect()
   {
@@ -998,7 +1302,7 @@ sealed class XmlMonsterPower : MonsterPower
 #region XmlPowerCard
 sealed class XmlPowerCard : PowerCard
 {
-  internal XmlPowerCard(XmlNode node) : base(node) { }
+  internal XmlPowerCard(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node, cardTemplatesById) { }
 
   public override bool CanTakeEffect()
   {
@@ -1032,7 +1336,7 @@ sealed class XmlTactic : Tactic
 #region XmlTreasureCard
 sealed class XmlTreasureCard : TreasureCard
 {
-  internal XmlTreasureCard(XmlNode node) : base(node) { }
+  internal XmlTreasureCard(XmlNode node, Dictionary<string, CardTemplate> cardTemplatesById) : base(node, cardTemplatesById) { }
 
   public override bool CanTakeEffect()
   {

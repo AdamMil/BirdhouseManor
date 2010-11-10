@@ -19,11 +19,57 @@
       <xs:enumeration value="wall" />
     </xs:restriction>
   </xs:simpleType>
-  
+
+  <xs:simpleType name="cardTemplateArea">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+,\d+(\s*-\s*\d+,\d+)+" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="cardTemplatePlaceholderName">
+    <xs:union memberTypes="xs:string">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="ac" />
+          <xs:enumeration value="description" />
+          <xs:enumeration value="flavor" />
+          <xs:enumeration value="hp" />
+          <xs:enumeration value="level" />
+          <xs:enumeration value="speed" />
+          <xs:enumeration value="surge" />
+          <xs:enumeration value="xp" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="cardTemplatePlaceholderType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="image" />
+      <xs:enumeration value="text" />
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="character">
     <xs:restriction base="xs:string">
       <xs:pattern value="\S" />
     </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="color">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:pattern value="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?" />
+        </xs:restriction>
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="black" />
+          <xs:enumeration value="white" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
   </xs:simpleType>
 
   <xs:simpleType name="difficulty">
@@ -118,11 +164,62 @@
     <xs:sequence>
       <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
       <xs:element name="description" type="markup" minOccurs="0" />
+      <xs:element name="card" type="cardTemplate" minOccurs="0" />
     </xs:sequence>
     <xs:attribute name="count" type="xs:nonNegativeInteger" default="1" />
     <xs:attribute name="description" type="nonEmptyTrimmedString" />
     <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
     <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplate">
+    <xs:choice maxOccurs="unbounded">
+      <xs:element name="content" type="cardTemplateContent" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="img" type="cardTemplateImage" />
+      <xs:element name="placeholder" type="cardTemplatePlaceholder" />
+      <xs:element name="text" type="cardTemplateText" />
+    </xs:choice>
+    <xs:attribute name="base" type="xs:IDREF" />
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplateWithId">
+    <xs:complexContent>
+      <xs:extension base="cardTemplate">
+        <xs:attribute name="id" type="xs:ID" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplateContent" mixed="true">
+    <xs:attribute name="color" type="color" />
+    <xs:attribute name="name" type="cardTemplatePlaceholderName" use="required" />
+    <xs:attribute name="value" type="nonEmptyTrimmedString" />
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplateImage">
+    <xs:attribute name="area" type="cardTemplateArea" use="required" />
+    <xs:attribute name="src" type="nonEmptyTrimmedString" use="required" />
+    <xs:attribute name="tint" type="color" />
+  </xs:complexType>
+  
+  <xs:complexType name="cardTemplatePlaceholder">
+    <xs:attribute name="area" type="cardTemplateArea" use="required" />
+    <xs:attribute name="color" type="color" />
+    <xs:attribute name="name" type="cardTemplatePlaceholderName" use="required" />
+    <xs:attribute name="type" type="cardTemplatePlaceholderType" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplateText" mixed="true">
+    <xs:attribute name="area" type="cardTemplateArea" use="required" />
+    <xs:attribute name="color" type="color" default="black" />
+    <xs:attribute name="size" type="xs:positiveInteger" default="10" />
+    <xs:attribute name="text" type="nonEmptyTrimmedString" />
+  </xs:complexType>
+
+  <xs:complexType name="cardTemplates">
+    <xs:sequence>
+      <xs:element name="card" type="cardTemplateWithId" maxOccurs="unbounded" />
+    </xs:sequence>
   </xs:complexType>
 
   <xs:complexType name="conditionalEffectCard">
@@ -203,11 +300,37 @@
     </xs:sequence>
   </xs:complexType>
 
+  <xs:complexType name="encounterEnvironmentCard">
+    <xs:complexContent>
+      <xs:extension base="conditionalEffectCard">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="effectTemplate" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="encounterEventCard">
+    <xs:complexContent>
+      <xs:extension base="effectWithAttackCard">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="eventTemplate" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="encounterTrapCard">
+    <xs:complexContent>
+      <xs:extension base="effectWithAttackCard">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="trapTemplate" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
   <xs:complexType name="hero">
     <xs:sequence>
       <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="card" type="cardTemplate" minOccurs="0" />
       <xs:element name="level" type="level" maxOccurs="unbounded" />
     </xs:sequence>
+    <xs:attribute name="card" type="nonEmptyTrimmedString" default="heroTemplate" />
     <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
     <xs:attribute name="name" type="nonEmptyTrimmedString" use="required" />
     <xs:attribute name="race" type="nonEmptyTrimmedString" use="required" />
@@ -250,11 +373,13 @@
   <xs:complexType name="monsterBase">
     <xs:sequence>
       <xs:element name="flavor" type="nonEmptyString" minOccurs="0" />
+      <xs:element name="card" type="cardTemplate" minOccurs="0" />
       <xs:element name="attacks" type="attacks" minOccurs="0" />
       <xs:element name="powers" type="monsterPowers" minOccurs="0" />
       <xs:element name="tactics" type="tactics" />
     </xs:sequence>
     <xs:attribute name="ac" type="xs:positiveInteger" use="required" />
+    <xs:attribute name="card" type="nonEmptyTrimmedString" default="monsterTemplate" />
     <xs:attribute name="class" type="nonEmptyTrimmedString" />
     <xs:attribute name="flavor" type="nonEmptyTrimmedString" />
     <xs:attribute name="hp" type="xs:positiveInteger" use="required" />
@@ -285,6 +410,7 @@
   <xs:complexType name="monsterPower">
     <xs:complexContent>
       <xs:extension base="monsterPowerBase">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="monsterPowerTemplate" />
         <xs:attribute name="name" type="nonEmptyTrimmedString" use="optional" />
       </xs:extension>
     </xs:complexContent>
@@ -388,16 +514,33 @@
 
   <xs:complexType name="treasureCards">
     <xs:sequence>
-      <xs:element name="blessing" type="effectCard" minOccurs="0" maxOccurs="unbounded" />
-      <xs:element name="fortune" type="effectCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="blessing" type="treasureBlessingCard" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="fortune" type="treasureFortuneCard" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="item" type="treasureItemCard" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="treasureBlessingCard">
+    <xs:complexContent>
+      <xs:extension base="effectCard">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="blessingTemplate" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="treasureFortuneCard">
+    <xs:complexContent>
+      <xs:extension base="effectCard">
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="fortuneTemplate" />
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <xs:complexType name="treasureItemCard">
     <xs:complexContent>
       <xs:extension base="conditionalEffectWithAttackCard">
         <xs:attribute name="activation" type="activation" default="immediate" />
+        <xs:attribute name="card" type="nonEmptyTrimmedString" default="itemTemplate" />
         <xs:attribute name="discard" type="xs:boolean" default="true" />
         <xs:attribute name="isAttack" type="xs:boolean" default="false" />
         <xs:attribute name="isMove" type="xs:boolean" default="false" />
@@ -413,6 +556,7 @@
 
   <xs:complexType name="game">
     <xs:sequence>
+      <xs:element name="cardTemplates" type="cardTemplates" />
       <xs:element name="squareTypes" type="squareTypes" minOccurs="0" />
       <xs:element name="squares" type="squares" />
       <xs:element name="tokens" type="tokens" minOccurs="0" />
