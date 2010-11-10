@@ -95,6 +95,14 @@ enum DeckLocation
 }
 #endregion
 
+#region Entity
+abstract class Entity
+{
+  public int AC { get; set; }
+  public int HP { get; set; }
+}
+#endregion
+
 #region GameState
 sealed class GameState
 {
@@ -102,15 +110,35 @@ sealed class GameState
   {
     if(game == null) throw new ArgumentNullException();
     this.game = game;
+
+    dungeonCards = new Deck<DungeonCard>(game.DungeonCards);
+    encounterCards = new Deck<EncounterCard>(game.EncounterCards);
+    monsterCards = new Deck<MonsterClass>(game.MonsterCards);
+    treasureCards = new Deck<TreasureCard>(game.TreasureCards);
   }
 
   readonly Game game;
   readonly Board board = new Board();
-  readonly Deck<DungeonCard> dungeonCards = new Deck<DungeonCard>();
-  readonly Deck<EncounterCard> encounterCards = new Deck<EncounterCard>(), encounterDiscard = new Deck<EncounterCard>();
-  readonly Deck<MonsterClass> monsterCards = new Deck<MonsterClass>(), monsterDiscard = new Deck<MonsterClass>();
+  readonly Deck<DungeonCard> dungeonCards;
+  readonly Deck<EncounterCard> encounterCards, encounterDiscard = new Deck<EncounterCard>();
+  readonly Deck<MonsterClass> monsterCards, monsterDiscard = new Deck<MonsterClass>();
   readonly Deck<MonsterClass> xpPile = new Deck<MonsterClass>();
-  readonly Deck<TreasureCard> treasureCards = new Deck<TreasureCard>(), treasureDiscard = new Deck<TreasureCard>();
+  readonly Deck<TreasureCard> treasureCards, treasureDiscard = new Deck<TreasureCard>();
+}
+#endregion
+
+#region Hero
+sealed class Hero : Entity
+{
+  public Hero(HeroClass heroClass)
+  {
+    if(heroClass == null) throw new ArgumentNullException();
+    Class = heroClass;
+  }
+
+  public HeroClass Class { get; private set; }
+  public int Level { get; private set; }
+  public int Speed { get; set; }
 }
 #endregion
 

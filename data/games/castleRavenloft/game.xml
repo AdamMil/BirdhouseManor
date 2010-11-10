@@ -4,6 +4,19 @@
         assembly="CastleRavenloft.dll"
         xmlns:g="http://www.adammil.net/BirdhouseManor/game.xsd">
 
+  <cardTemplates>
+    <card id="heroTemplate">
+      <placeholder name="heroImage" type="image" area="259,9 - 502,500" />
+      <img src="cards/herocard.png" tint="#4E3B29" area="0,0 - 511,511" />
+      <placeholder name="flavor" color="white" type="text" area="20,23 - 254,23 - 254,81 - 284,163 - 20,163" />
+      <placeholder name="ac" type="text" area="19,189 - 73,223" />
+      <placeholder name="hp" type="text" area="79,189 - 132,223" />
+      <placeholder name="speed" type="text" area="138,189 - 192,223" />
+      <placeholder name="surge" type="text" area="196,189 - 278,223" />
+      <placeholder name="description" type="text" area="24,237 - 297,237 - 297,333 - 285,402 - 264,480 - 24,480" />
+    </card>
+  </cardTemplates>
+
   <squareTypes>
     <squareType name="coffin" />
     <squareType name="skull" />
@@ -1548,6 +1561,9 @@
         You are stealthy and sneaky, and a master of sudden strikes and quick escapes. You laugh at danger, and have come to
         Castle Ravenloft to satisfy your curiosity and acquire treasure.
       </flavor>
+      <card base="heroTemplate">
+        <content name="heroImage" value="cards/kat.jpg" />
+      </card>
       <level level="1" class="Rogue" skills="Trap Expert" ac="14" hp="8" surge="4" speed="6">
         <powers>
           <power name="Sneak Attack" />
