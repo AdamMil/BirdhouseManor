@@ -55,8 +55,12 @@
     <Compile Include="Server.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="data\games\castleRavenloft\cards\border.png" />
     <Content Include="data\games\castleRavenloft\cards\herocard.png" />
     <Content Include="data\games\castleRavenloft\cards\kat.jpg" />
+    <Content Include="data\games\castleRavenloft\cards\monsterBack.png" />
+    <Content Include="data\games\castleRavenloft\cards\monsterInfo.png" />
+    <Content Include="data\games\castleRavenloft\cards\monsterTint.png" />
     <Content Include="data\games\castleRavenloft\game.xml" />
     <Content Include="data\games\castleRavenloft\map\allisa_token.png" />
     <Content Include="data\games\castleRavenloft\map\arjhan_token.png" />

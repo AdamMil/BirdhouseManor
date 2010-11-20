@@ -1,19 +1,93 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 
 <g:game name="Castle Ravenloft" creator="Wizards of the Coast" porter="Adam Milazzo" version="1" schemaVersion="1"
-        assembly="CastleRavenloft.dll"
-        xmlns:g="http://www.adammil.net/BirdhouseManor/game.xsd">
+        assembly="CastleRavenloft.dll" xmlns:g="http://www.adammil.net/BirdhouseManor/game.xsd">
 
   <cardTemplates>
     <card id="heroTemplate">
-      <placeholder name="heroImage" type="image" area="259,9 - 502,500" />
-      <img src="cards/herocard.png" tint="#4E3B29" area="0,0 - 511,511" />
-      <placeholder name="flavor" color="white" type="text" area="20,23 - 254,23 - 254,81 - 284,163 - 20,163" />
-      <placeholder name="ac" type="text" area="19,189 - 73,223" />
-      <placeholder name="hp" type="text" area="79,189 - 132,223" />
-      <placeholder name="speed" type="text" area="138,189 - 192,223" />
-      <placeholder name="surge" type="text" area="196,189 - 278,223" />
-      <placeholder name="description" type="text" area="24,237 - 297,237 - 297,333 - 285,402 - 264,480 - 24,480" />
+      <front>
+        <image name="heroImage" area="259,9 - 502,500" />
+        <image name="baseImage" src="cards/herocard.png" area="0,0 - 511,511" />
+        <text name="nameRaceFlavor" color="white" area="20,23 - 254,23 - 254,81 - 284,163 - 20,163" />
+        <text name="ac" area="19,189 - 72,222" align="middleCenter" />
+        <text name="hp" area="79,189 - 131,222" align="middleCenter" />
+        <text name="speed" area="138,189 - 191,222" align="middleCenter" />
+        <text name="surge" area="196,189 - 277,222" align="middleCenter" />
+        <text name="description" area="24,237 - 297,237 - 297,333 - 285,402 - 264,480 - 24,480" />
+        <text name="level" area="392,468 - 503,504" align="middleCenter" />
+      </front>
+    </card>
+
+    <card id="monsterTemplate">
+      <front>
+        <image src="cards/border.png" area="0,0 - 336,486" />
+        <image name="tintLayer" src="cards/monsterTint.png" area="0,0 - 336,486" />
+        <image src="cards/monsterInfo.png" area="0,0 - 336,486" />
+        <text name="ac" area="132,67 - 161,94" align="middleCenter" />
+        <text name="hp" area="166,67 - 195,94" align="middleCenter" />
+        <text name="attack" area="40,342 - 165,378" align="middleCenter" />
+        <text name="damage" area="172,342 - 195,378" align="middleCenter" />
+        <text name="nameAndRace" color="white" area="16,16 - 319,41" />
+        <text name="description" area="18,104 - 180,104 - 212,135 - 253,152 - 296,152 - 312,193 - 312,317 - 18,317" />
+        <text name="xp" color="white" area="14,390 - 321,449" />
+      </front>
+      <back>
+        <image src="cards/monsterBack.png" area="0,0 - 336,486" />
+      </back>
+    </card>
+
+    <card id="encounterTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="environmentTemplate" base="encounterTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="eventTemplate" base="encounterTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="trapTemplate" base="encounterTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="treasureTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="blessingTemplate" base="treasureTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="fortuneTemplate" base="treasureTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="itemTemplate" base="treasureTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
+    </card>
+
+    <card id="heroPowerTemplate">
+      <front>
+        <polygon area="0,0 - 9,9" color="white" />
+      </front>
     </card>
   </cardTemplates>
 
@@ -170,7 +244,7 @@
         if(CARD.xp > C.xp) S = CARD
         else if(CARD.xp &lt; C.xp) S = C
         else S = select([C, CARD])
-        
+
         foreach([C,CARD], if(ITEM != S) { discard(ITEM) })
       </effect>
     </environment>
@@ -339,7 +413,7 @@
             miss()
           }
         }
-        
+
         foreach(select(hero, 0, tile, all), attack(ITEM, 9, 2, 0, ONHIT))
       </effect>
     </event>
@@ -712,7 +786,7 @@
       <description>Trigger the trap during your villain phase: Attack each hero on this tile.</description>
     </trap>
   </encounterCards>
-  
+
   <treasureCards>
     <blessing name="Guided Strikes" effect="addBonus(selectAny(hero, all), 'Guided Strikes', 2)">
       <description>Until the end of your next hero phase, each hero gains a +2 bonus to attack rolls.</description>
@@ -932,7 +1006,7 @@
         place(select(monster, 0, tile, all, T), select(tile, 3, tile))
       </effect>
     </item>
-    
+
     <!-- adventure treasure -->
     <!-- TODO: implement this -->
     <item name="Dimensional Shackles" count="0" activation="onTurn" isAttack="true">
@@ -985,7 +1059,7 @@
         addMarker('Can't Regenerate', M)
       </effect>
     </item>
-    
+
     <item name="Sunsword" count="0" discard="false"
           description="You deal +1 damage against adjacent vampires while this item is in play.">
       <effect>
@@ -1033,7 +1107,7 @@
       </effect>
     </item>
   </treasureCards>
-  
+
   <powers>
     <daily name="Dragon's Breath" isAttack="false"
            condition="any(monster, 0, tile)" effect="attack(0, tile, all, 4, 1)"
@@ -1076,7 +1150,7 @@
         attack(0, tile, all, 6, 3, 1, T)
       </effect>
     </daily>
-    
+
     <utility class="cleric" name="Healing Word" isAttack="false" condition="isPhase(hero)"
              flavor="You whisper a brief prayer, and a divine healing light washes over your companion.">
       <description>
@@ -1168,10 +1242,10 @@
 
     <daily class="fighter" name="Precise Strike" effect="if(!attack(1, square, 1, 11, 2)) { preserve() }"
            flavor="You concentrate to make sure you hit your opponent." />
-    
+
     <daily class="fighter" name="Brute Strike" effect="if(!attack(1, square, 1, 5, 4)) { preserve() }"
            flavor="You shatter your enemy's defenses with a powerful blow." />
-    
+
     <daily class="fighter" name="Come and Get It" condition="any(monster, 1, tile)"
            flavor="You call your opponents toward you and deliver an attack they won't forget."
            description="Choose a tile within 1 tile of you. Place each monster on that tile adjacent to your hero, and then attack each adjacent monster.">
@@ -1184,11 +1258,11 @@
 
     <utility class="fighter" name="Unstoppable" isAttack="false" condition="phase(start)" effect="heal(2)"
              flavor="Your adrenaline carries you through the battle." />
-    
+
     <utility class="fighter" name="Bodyguard" isAttack="false"
              condition="!hasMarker('Immobilized') and wasHit(hero, monster)" effect="miss() swap(DEFENDER)"
              flavor="You block an attack that would strike down your ally." />
-    
+
     <utility class="fighter" name="Get Over There" isAttack="false"
              condition="!hasMarker('Immobilized') and count(monster, 2, tile) > 1"
              effect="place(SELF, 1, square, select(monster, 2, tile))"
@@ -1214,12 +1288,12 @@
         }
       </effect>
     </atWill>
-    
+
     <atWill class="fighter" name="Trapping Strike" condition="!hasMarker('Immobilized') and any(monster, 1, tile)"
             effect="M=select(monster, 1, tile) place(SELF, 1, square, M) attack(M, 8, 1)"
             flavor="Your challenge draws out your opponent."
             description="Choose one Monster within 1 tile of you. Place that Monster adjacent to your Hero and attack it." />
-    
+
     <atWill class="fighter" name="Tide of Iron" condition="!hasMarker('Immobilized') and any(monster, 1, square)"
             effect="M=select(monster, 1, square) if(attack(M, 8, 1)) { place(M, 1, tile) place(SELF, 0, tile) }"
             flavor="After each mighty swing, you advance as you push your enemy back." />
@@ -1229,7 +1303,7 @@
            effect="M=select(monster, 1, tile) place(SELF, 1, square, M) attack(M, 6, 3, 1)"
            flavor="You swiftly move to your foe and strike."
            description="Select a monster within one tile of you. Move adjacent to it and attack it." />
-    
+
     <daily class="ranger" name="Split the Tree" condition="any(monster, 2, tile)"
            flavor="You fire two arrows at once, which strike two different monsters."
            description="Choose a tile within 2 tiles of you. Attack two monsters on that tile. If you miss and that monster is more than 1 tile away from you, place it 1 tile closer to you.">
@@ -1246,7 +1320,7 @@
         })
       </effect>
     </daily>
-    
+
     <daily class="ranger" name="Attacks on the Run" condition="can(move)"
            flavor="You run through your enemies, striking twice as you go."
            description="Move your speed. Attack two Monsters that you were adjacent to during the movement.">
@@ -1293,7 +1367,7 @@
         }
       </effect>
     </atWill>
-    
+
     <atWill class="ranger" name="Twin Shot"
             condition="any(monster, 2, tile)" effect="attack(select(monster, 2, tile, 2), 4, 1)"
             flavor="You fire two arrows in the space of a breath." description="Attack two Monsters within 1 tile of you." />
@@ -1311,7 +1385,7 @@
         if(any(hero, 1, square, M, ITEM != SELF)) damage(2, M)
       </effect>
     </daily>
-    
+
     <daily class="rogue" name="Riposte Strike"
            condition="wasAttacked()" effect="if(!attack(ATTACKER, 7, 2)) { preserve() }"
            flavor="Your foe's attack leaves it open to a counterattack.">
@@ -1321,7 +1395,7 @@
         If you miss, do not flip this card over.
       </description>
     </daily>
-    
+
     <daily class="rogue" name="Dagger Barrage" condition="any(monster, 1, tile)"
            flavor="You fling daggers at each nearby foe.">
       <description>
@@ -1356,7 +1430,7 @@
         Place your Hero on a tile within 2 tiles of you.
       </description>
     </utility>
-    
+
     <utility class="rogue" name="Spring Away" isAttack="false"
              condition="ACTOR != SELF and wasCardDrawn(encounter)" effect="place(SELF, 2, tile)"
              flavor="You sense trouble coming and move away before it catches you.">
@@ -1379,7 +1453,7 @@
         attack(M, distance(tile, M) == 0 ? 7 : 9, 1)
       </effect>
     </atWill>
-    
+
     <atWill class="rogue" name="Backstab" damage="1" condition="any(monster, 1, square)"
             flavor="You strike from the shadows.">
       <description>
@@ -1393,7 +1467,7 @@
         attack(M, 7, B ? 2 : 1)
       </effect>
     </atWill>
-    
+
     <atWill class="rogue" name="Deft Strike" condition="any(monster, 3, square)"
             flavor="A final lunge puts you in an advantageous position.">
       <description>
@@ -1413,10 +1487,10 @@
         attack(select(monster, 0, tiles, all, T), 7, 3, 1)
       </effect>
     </daily>
-    
+
     <!-- TODO: unknown -->
     <daily class="wizard" name="Lightning Bolt" />
-    
+
     <daily class="wizard" name="Freezing Cloud"
            condition="any(tile, 1, tile, SELF, distance(tile, ITEM) != 0 and countTokens('Freezing Cloud', ITEM) == 0)"
            flavor="UNKNOWN"
@@ -1441,10 +1515,10 @@
              condition="isPhase(hero) and !hasMarker('Immobilized')" effect="place(SELF, 1, tile)"
              flavor="You step through the arcane mists to appear in a different location."
              description="Use this power during your Hero Phase. Place your Hero on a tile within 1 tile of you." />
-    
+
     <!-- TODO: unknown -->
     <utility class="wizard" name="Shield" isAttack="false" />
-    
+
     <utility class="wizard" name="Illusionary Crowd" isAttack="false"
              condition="any(tile, 1, tile, SELF, distance(tile, ITEM) == 1 and !hasMarker('Illusionary Crowd', ITEM))"
              flavor="You create an illisionary crowd of defenseless people to draw monsters away from you."
@@ -1471,7 +1545,7 @@
         if(distance(tile, T) != 0) place(select(monster, 0, tile, all), T)
       </effect>
     </atWill>
-    
+
     <atWill class="wizard" name="Scorching Burst" condition="any(monster, 1, tile, distance(tile, ITEM) != 0)"
             flavor="You create a vertical column of golden flames that burns all within it."
             description="Choose a tile 1 tile away from you. Attack each monster on that tile.">
@@ -1480,7 +1554,7 @@
         attack(0, tile, all, 7, 1, 0, T)
       </effect>
     </atWill>
-    
+
     <atWill class="wizard" name="Magic Missile" condition="any(monster, 3, tile)"
             flavor="You launch a silvery bolt of energy at a monster."
             description="Attack one Monster within 3 tiles of you. If you miss and the monster is more than 1 tile away from you, place it 1 tile closer to you.">
@@ -1495,7 +1569,7 @@
       </effect>
     </atWill>
   </powers>
-  
+
   <heroes>
     <hero name="Allisa" race="Human" tokenImg="map/allisa_token.png">
       <flavor>
@@ -1562,6 +1636,7 @@
         Castle Ravenloft to satisfy your curiosity and acquire treasure.
       </flavor>
       <card base="heroTemplate">
+        <content name="baseImage" color="#4E3B29" />
         <content name="heroImage" value="cards/kat.jpg" />
       </card>
       <level level="1" class="Rogue" skills="Trap Expert" ac="14" hp="8" surge="4" speed="6">
@@ -1668,7 +1743,7 @@
         </tactic>
       </tactics>
     </monster>
-    
+
     <!-- TODO: this hasn't been implemented faithfully. (the owner of the card should change after the hag acts) -->
     <monster name="Gray Hag" race="Fey" ac="14" hp="4" xp="4">
       <tactics>
@@ -1751,7 +1826,7 @@
         </tactic>
       </tactics>
     </monster>
-    
+
     <monster name="Spider" race="Vermin" ac="15" hp="1" xp="2" count="3">
       <attacks>
         <attack name="bite" bonus="6" damage="2" missDamage="1" />
@@ -1854,7 +1929,7 @@
       </tactics>
     </monster>
   </monsters>
-  
+
   <villains>
     <villain name="Count Strahd von Zarovich" race="Vampire" ac="19" hp="12"
              flavor="The master of Castle Ravenloft is known as &quot;the devil&quot; to the villagers of Barovia.">
