@@ -11,17 +11,17 @@ namespace BirdhouseManor
 {
 
 /* -- Client protocol:
- * 
+ *
  * The client can be in any of the following states. After the communication channel is opened, the client begins in the
  * LoggingIn state.
  *   LoggingIn, InLobby, InGame
- * 
+ *
  * -- Bidirectional messages:
- * 
+ *
  * -- Client to server messages:
- * 
+ *
  * -- Server to client messages:
- * 
+ *
  */
 
 #region MessageType
@@ -40,9 +40,9 @@ enum MessageType : byte
 [StructLayout(LayoutKind.Sequential, Pack=1)]
 abstract class Message
 {
-  protected Message(MessageType type) 
+  protected Message(MessageType type)
   {
-    Type = type; 
+    Type = type;
   }
 
   public readonly MessageType Type;
@@ -185,7 +185,7 @@ sealed class LoginMessage : Message, INetSerializable
 sealed class JoinMessage : Message, INetSerializable
 {
   public JoinMessage() : base(MessageType.Join) { }
-  
+
   public JoinMessage(int playerId, string playerName) : this()
   {
     if(string.IsNullOrEmpty(playerName)) throw new ArgumentException();

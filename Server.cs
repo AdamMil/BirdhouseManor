@@ -105,7 +105,7 @@ class Server
     if(m.Version < MinimumVersion || m.MajorVersion > myVersion.Major ||
        m.MajorVersion == myVersion.Major && m.MinorVersion > myVersion.Minor)
     {
-      string disconnectMessage = 
+      string disconnectMessage =
         string.Format(CultureInfo.InvariantCulture,
                       "Your client version ({0}.{1}) is incompatible with the server version ({2}.{3}).",
                       m.MajorVersion, m.MinorVersion, myVersion.Major, myVersion.Minor);
